@@ -1,0 +1,105 @@
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.stat-card {
+  position: relative;
+  border-radius: 16px;
+  padding: 18px 18px 20px;
+  color: var(--color-on-dark);
+  min-height: 140px;
+  display: flex;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+.stat-card::after {
+  content: "";
+  position: absolute;
+  right: -30px;
+  top: -10px;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: var(--color-overlay-15);
+}
+
+.stat-card::before {
+  content: "";
+  position: absolute;
+  right: 40px;
+  top: 40px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: var(--color-overlay-12);
+}
+
+.stat-card h2 {
+  margin: 4px 0 10px;
+  font-size: 28px;
+}
+
+.stat-card p {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.stat-card span {
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.stat-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--color-overlay-40);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 18px 18px;
+  z-index: 1;
+}
+
+.stat-icon.user {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 21c0-4-4-7-8-7s-8 3-8 7'/><circle cx='12' cy='8' r='4'/></svg>");
+}
+
+.stat-icon.society {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='7' width='7' height='13'/><rect x='14' y='3' width='7' height='17'/><path d='M7 7V3h6'/></svg>");
+}
+
+.stat-icon.service {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 1v4'/><path d='M12 19v4'/><path d='M4.22 4.22l2.83 2.83'/><path d='M16.95 16.95l2.83 2.83'/><path d='M1 12h4'/><path d='M19 12h4'/><path d='M4.22 19.78l2.83-2.83'/><path d='M16.95 7.05l2.83-2.83'/><circle cx='12' cy='12' r='3'/></svg>");
+}
+
+.stat-body {
+  z-index: 1;
+}
+
+.stat-card.red {
+  background: var(--grad-stat-red);
+}
+
+.stat-card.blue {
+  background: var(--grad-stat-blue);
+}
+
+.stat-card.mint {
+  background: var(--grad-stat-mint);
+}
+
+.stat-card.green {
+  background: var(--grad-stat-green);
+}
+
+.stat-card.amber {
+  background: var(--grad-stat-amber);
+}
+
+.stat-card.purple {
+  background: var(--grad-stat-purple);
+}

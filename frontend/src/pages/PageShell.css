@@ -1,0 +1,26 @@
+.page-shell {
+  width: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.page-shell-card {
+  background: var(--color-surface);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+  padding: 40px;
+  min-width: min(520px, 100%);
+  text-align: center;
+}
+
+.page-shell-card h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+}
+
+.page-shell-card p {
+  margin: 0;
+  color: var(--color-muted-strong);
+  font-size: 14px;
+}
