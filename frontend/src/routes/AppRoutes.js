@@ -3,6 +3,7 @@ import Login from "../pages/Login";
 import Dashboard from "../pages/Dashboard";
 import UserManagement from "../pages/UserManagement";
 import AddUser from "../pages/AddUser";
+import AddSociety from "../pages/AddSociety";
 import SocietyManagement from "../pages/SocietyManagement";
 import SocietyAdmin from "../pages/SocietyAdmin";
 import Services from "../pages/Services";
@@ -28,6 +29,7 @@ const AppRoutes = () => {
         <Route path="/user-management" element={<UserManagement />} />
         <Route path="/add-user" element={<AddUser />} />
         <Route path="/society-management" element={<SocietyManagement />} />
+        <Route path="/add-society" element={<AddSociety />} />
         <Route path="/society-admin" element={<SocietyAdmin />} />
         <Route path="/services" element={<Services />} />
         <Route path="/services-providers" element={<ServicesProviders />} />
