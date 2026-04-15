@@ -1,4 +1,4 @@
-import AdminLayout from "../components/AdminLayout";
+import AdminLayout from "../layouts/AdminLayout";
 import "./Dashboard.css";
 
 const statCards = [

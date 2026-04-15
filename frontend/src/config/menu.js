@@ -1,0 +1,96 @@
+import {
+  HomeIcon,
+  UsersIcon,
+  BuildingOfficeIcon,
+  UserCircleIcon,
+  WrenchIcon,
+  BriefcaseIcon,
+  ClipboardDocumentListIcon,
+  Squares2X2Icon,
+  MegaphoneIcon,
+  SparklesIcon,
+  CalendarDaysIcon,
+  TruckIcon,
+  LifebuoyIcon,
+} from "@heroicons/react/24/outline";
+
+export const menuItems = [
+  {
+    label: "Dashboard",
+    path: "/dashboard",
+    icon: HomeIcon,
+    roles: ["admin", "hospital"],
+  },
+  {
+    label: "User Management",
+    path: "/user-management",
+    icon: UsersIcon,
+    roles: ["admin"],
+  },
+  {
+    label: "Society Management",
+    path: "/society-management",
+    icon: BuildingOfficeIcon,
+    roles: ["admin"],
+  },
+  {
+    label: "Society Admin",
+    path: "/society-admin",
+    icon: UserCircleIcon,
+    roles: ["admin"],
+  },
+  {
+    label: "Services",
+    path: "/services",
+    icon: WrenchIcon,
+    roles: ["admin"],
+  },
+  {
+    label: "Services Providers",
+    path: "/services-providers",
+    icon: BriefcaseIcon,
+    roles: ["admin"],
+  },
+  {
+    label: "Service Used",
+    path: "/service-used",
+    icon: ClipboardDocumentListIcon,
+    roles: ["admin"],
+  },
+  {
+    label: "Floor Summary",
+    path: "/floor-summary",
+    icon: Squares2X2Icon,
+    roles: ["admin"],
+  },
+  {
+    label: "Ads",
+    path: "/ads",
+    icon: MegaphoneIcon,
+    roles: ["admin"],
+  },
+  {
+    label: "Amenities",
+    path: "/amenities",
+    icon: SparklesIcon,
+    roles: ["admin"],
+  },
+  {
+    label: "Booking",
+    path: "/booking",
+    icon: CalendarDaysIcon,
+    roles: ["admin"],
+  },
+  {
+    label: "Parking Management",
+    path: "/parking-management",
+    icon: TruckIcon,
+    roles: ["admin"],
+  },
+  {
+    label: "Support",
+    path: "/support",
+    icon: LifebuoyIcon,
+    roles: ["admin", "hospital"],
+  },
+];

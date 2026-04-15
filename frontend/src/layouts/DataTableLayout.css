@@ -1,0 +1,177 @@
+.data-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.06);
+  margin-top: 18px;
+}
+
+/* Header Section */
+.data-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.data-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.data-card-top h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #222;
+  margin: 0;
+}
+
+/* Filter Toggle Button */
+.filter-toggle {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* Filters + Search Row */
+.data-filters-search {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+/* Filters Container */
+.data-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Filter Dropdown */
+.data-filters select {
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid #e4e4e4;
+  font-size: 13px;
+  background: #f7f8fc;
+  color: #222;
+  outline: none;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+/* Search Box */
+.data-search {
+  display: flex;
+  align-items: center;
+  border: 1px solid #e4e4e4;
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: #fff;
+  min-width: 220px;
+  height: 40px;
+}
+
+.data-search input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 13px;
+  color: #222;
+}
+
+.search-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23e63946'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z'/%3E%3C/svg%3E")
+    no-repeat center;
+  background-size: contain;
+}
+
+/* Table Wrapper */
+.data-table {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+/* Table */
+.data-table table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+.data-table th {
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 14px 12px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+}
+
+.data-table td {
+  font-size: 13px;
+  padding: 14px 12px;
+  color: #666;
+  border-bottom: 1px solid #f1f1f1;
+}
+
+/* Hover Effect */
+.data-table tbody tr:hover {
+  background: #fafafa;
+}
+
+/* Action Buttons */
+.action-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Edit Icon */
+.icon-btn.edit {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='orange' viewBox='0 0 24 24'%3E%3Cpath d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/%3E%3C/svg%3E")
+    no-repeat center;
+  background-size: 16px;
+  background-color: #fff7e6;
+}
+
+/* Delete Icon */
+.icon-btn.delete {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='red' viewBox='0 0 24 24'%3E%3Cpath d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'/%3E%3C/svg%3E")
+    no-repeat center;
+  background-size: 16px;
+  background-color: #ffecec;
+}
+
+/* View Button */
+.view-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #3d5afe;
+  background: transparent;
+  color: #3d5afe;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.view-btn:hover {
+  background: #3d5afe;
+  color: #fff;
+}

@@ -1,197 +1,226 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import AdminLayout from "../components/AdminLayout";
+import { useEffect, useState } from "react";
 import "./UserManagement.css";
 
-const stats = [
-  { label: "Total Users", value: "5k+", helper: "" },
-  { label: "In-active Users", value: "121", helper: "Not used app since 30days" },
-];
+import AdminLayout from "../layouts/AdminLayout";
+import DataTableLayout from "../layouts/DataTableLayout";
+import DataTable from "../components/common/DataTable";
 
-const users = [
-  {
-    society: "Hiranandani Estate",
-    tower: "T1",
-    floor: "10",
-    flat: "1010",
-    name: "Himanshu Sharma",
-    email: "himanshusharma23@gmail.com",
-    os: "Android",
-    phone: "+91 857412365",
-    type: "Owner",
-  },
-  {
-    society: "Hiranandani Estate",
-    tower: "T1",
-    floor: "10",
-    flat: "1010",
-    name: "Himanshu Sharma",
-    email: "himanshusharma23@gmail.com",
-    os: "iOS",
-    phone: "+91 857412365",
-    type: "Tenet",
-  },
-  {
-    society: "Hiranandani Estate",
-    tower: "T1",
-    floor: "10",
-    flat: "1010",
-    name: "Himanshu Sharma",
-    email: "himanshusharma23@gmail.com",
-    os: "Android",
-    phone: "+91 857412365",
-    type: "Owner",
-  },
-  {
-    society: "Hiranandani Estate",
-    tower: "T1",
-    floor: "10",
-    flat: "1010",
-    name: "Himanshu Sharma",
-    email: "himanshusharma23@gmail.com",
-    os: "iOS",
-    phone: "+91 857412365",
-    type: "Owner",
-  },
-  {
-    society: "Hiranandani Estate",
-    tower: "T1",
-    floor: "10",
-    flat: "1010",
-    name: "Himanshu Sharma",
-    email: "himanshusharma23@gmail.com",
-    os: "Android",
-    phone: "+91 857412365",
-    type: "Tenet",
-  },
-];
+import StatCard from "../components/ui/StatCard";
+import Button from "../components/ui/Button";
+import ActionButtons from "../components/common/ActionButtons";
+
+import Modal from "../components/ui/Modal";
+import UserForm from "../components/users/UserForm";
+import FilterBar from "../components/common/FilterBar";
+
+import {
+  getUsers,
+  deleteUser,
+  getUserStats,
+} from "../services/userService";
 
 const UserManagement = () => {
-  const navigate = useNavigate();
-  const [showFilters, setShowFilters] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [openModal, setOpenModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [viewMode, setViewMode] = useState(false);
+
+  // 🔥 MULTI FILTER STATE
+  const [filters, setFilters] = useState({
+    os_type: [],
+    user_type: [],
+  });
+
+  const [appliedFilters, setAppliedFilters] = useState({
+    os_type: [],
+    user_type: [],
+  });
+
+  // 🔥 STATS
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+  });
+
+  // 🔥 FILTER CONFIG
+  const filtersConfig = [
+    {
+      key: "os_type",
+      label: "OS Type",
+      options: ["Android", "iOS"],
+    },
+    {
+      key: "user_type",
+      label: "User Type",
+      options: ["Owner", "Tenant", "Super Admin", "Society Admin"],
+    },
+  ];
+
+  // 🔹 Fetch Users
+  const fetchUsers = async () => {
+    try {
+      const data = await getUsers();
+      setUsers(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔹 Fetch Stats
+  const fetchStats = async () => {
+    try {
+      const res = await getUserStats();
+      setStats(res);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+    fetchStats();
+  }, []);
+
+  // 🔥 APPLY FILTERS
+  const handleApplyFilters = () => {
+    setAppliedFilters(filters);
+  };
+
+  // 🔥 CLEAR FILTERS
+  const handleClearFilters = () => {
+    const empty = { os_type: [], user_type: [] };
+    setFilters(empty);
+    setAppliedFilters(empty);
+  };
+
+  // 🔥 FILTER LOGIC (FINAL FIX)
+  const filteredUsers = users.filter((user) => {
+    return (
+      (appliedFilters.os_type.length === 0 ||
+        appliedFilters.os_type.includes(user.os_type)) &&
+      (appliedFilters.user_type.length === 0 ||
+        appliedFilters.user_type.includes(user.user_type))
+    );
+  });
+
+  // 🔹 Handlers
+  const handleDelete = async (row) => {
+    if (!window.confirm("Deactivate this user?")) return;
+
+    try {
+      await deleteUser(row.user_id);
+      fetchUsers();
+      fetchStats();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleEdit = (row) => {
+    setSelectedUser(row);
+    setViewMode(false);
+    setOpenModal(true);
+  };
+
+  const handleView = (row) => {
+    setSelectedUser(row);
+    setViewMode(true);
+    setOpenModal(true);
+  };
+
+  // 🔹 Columns
+  const columns = [
+    { header: "Name", accessor: "full_name" },
+    { header: "Email ID", accessor: "email_id" },
+    { header: "Phone Number", accessor: "mobile_number" },
+    { header: "Gender", accessor: "gender" },
+    { header: "User Type", accessor: "user_type" },
+    { header: "OS Type", accessor: "os_type" },
+    {
+      header: "Action",
+      render: (row) => (
+        <ActionButtons
+          row={row}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onView={handleView}
+        />
+      ),
+    },
+  ];
 
   return (
-    <AdminLayout title="User Management">
-      <div className="user-page">
-        <div className="user-summary">
-          {stats.map((stat) => (
-            <div className="user-stat" key={stat.label}>
-              <p>{stat.label}</p>
-              <h3>{stat.value}</h3>
-              {stat.helper ? <span>{stat.helper}</span> : null}
-            </div>
-          ))}
+    <AdminLayout>
+      <DataTableLayout
+        title="User Management"
 
-          <div className="user-actions">
-            <button
-              className="btn primary"
-              type="button"
-              onClick={() => navigate("/add-user")}
-            >
-              + Add New User
-            </button>
-            <button className="btn danger" type="button">
-              + Add User In Bulk
-            </button>
-            <button className="btn outline" type="button">
-              Export Data In Excel
-            </button>
+
+        stats={
+          <div className="flex flex-wrap gap-4">
+            <StatCard title="Total Users" value={stats.total} />
+            <StatCard title="Active Users" value={stats.active} />
+            <StatCard title="Inactive Users" value={stats.inactive} />
           </div>
-        </div>
+        }
 
-        <div className="user-card">
-          <div className="user-card-header">
-            <div className="user-card-top">
-              <h2>User Management</h2>
-              <button
-                className="filter-toggle"
-                type="button"
-                onClick={() => setShowFilters((prev) => !prev)}
-                aria-expanded={showFilters}
-              >
-                {showFilters ? "Hide Filters" : "Filters"}
-              </button>
-            </div>
 
-            <div className={`user-filters${showFilters ? " open" : ""}`}>
-              <select defaultValue="Society">
-                <option>Society</option>
-                <option>Hiranandani Estate</option>
-              </select>
-              <select defaultValue="Tower">
-                <option>Tower</option>
-                <option>T1</option>
-              </select>
-              <select defaultValue="Floor">
-                <option>Floor</option>
-                <option>10</option>
-              </select>
-              <select defaultValue="OS-Type">
-                <option>OS-Type</option>
-                <option>Android</option>
-                <option>iOS</option>
-              </select>
-              <select defaultValue="Ownership Type">
-                <option>Ownership Type</option>
-                <option>Owner</option>
-                <option>Tenet</option>
-              </select>
-              <select defaultValue="Active Users">
-                <option>Active Users</option>
-                <option>Active</option>
-                <option>Inactive</option>
-              </select>
-            </div>
-            <div className="user-search">
-              <span className="search-icon" aria-hidden="true" />
-              <input placeholder="Search by name" />
-            </div>
-          </div>
+        filters={
+          <FilterBar
+            filtersConfig={filtersConfig}
+            filters={filters}
+            setFilters={setFilters}
+            onApply={handleApplyFilters}
+            onClear={handleClearFilters}
+          />
+        }
 
-          <div className="user-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Society</th>
-                  <th>Tower</th>
-                  <th>Floor</th>
-                  <th>Flat</th>
-                  <th>Name</th>
-                  <th>Email ID</th>
-                  <th>OS Type</th>
-                  <th>Phone Number</th>
-                  <th>Ownership Type</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user, index) => (
-                  <tr key={`${user.email}-${index}`}>
-                    <td data-label="Society">{user.society}</td>
-                    <td data-label="Tower">{user.tower}</td>
-                    <td data-label="Floor">{user.floor}</td>
-                    <td data-label="Flat">{user.flat}</td>
-                    <td data-label="Name">{user.name}</td>
-                    <td data-label="Email ID">{user.email}</td>
-                    <td data-label="OS Type">{user.os}</td>
-                    <td data-label="Phone Number">{user.phone}</td>
-                    <td data-label="Ownership Type">{user.type}</td>
-                    <td data-label="Action">
-                      <div className="action-group">
-                        <button className="icon-btn edit" type="button" aria-label="Edit" />
-                        <button className="icon-btn delete" type="button" aria-label="Delete" />
-                        <button className="view-btn" type="button">
-                          View
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+        actions={
+          <Button
+            variant="danger"
+            onClick={() => {
+              setSelectedUser(null);
+              setViewMode(false);
+              setOpenModal(true);
+            }}
+          >
+            + ADD NEW USER
+          </Button>
+        }
+      >
+        {loading ? (
+          <p className="p-4 text-gray-500">Loading users...</p>
+        ) : (
+          <DataTable columns={columns} data={filteredUsers} />
+        )}
+      </DataTableLayout>
+
+      {/* 🔥 MODAL */}
+      <Modal
+        isOpen={openModal}
+        onClose={() => setOpenModal(false)}
+        title={
+          viewMode
+            ? "View User"
+            : selectedUser
+            ? "Edit User"
+            : "Add New User"
+        }
+      >
+        <UserForm
+          user={selectedUser}
+          readOnly={viewMode}
+          onSuccess={() => {
+            setOpenModal(false);
+            fetchUsers();
+            fetchStats();
+          }}
+        />
+      </Modal>
     </AdminLayout>
   );
 };

@@ -1,4 +1,4 @@
-import AdminLayout from "../components/AdminLayout";
+import AdminLayout from "../layouts/AdminLayout";
 import "./PageShell.css";
 
 const PageShell = ({ title }) => {
