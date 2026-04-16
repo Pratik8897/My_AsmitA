@@ -3,7 +3,7 @@ import { useState } from "react";
 import AdminLayout from "../components/AdminLayout";
 import "./AddUser.css";
 
-const AddUser = () => {
+const AddSociety = () => {
   const navigate = useNavigate();
 
   // ✅ State management
@@ -154,4 +154,4 @@ const AddUser = () => {
   );
 };
 
-export default AddUser;
+export default AddSociety;
