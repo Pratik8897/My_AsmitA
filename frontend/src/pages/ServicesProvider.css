@@ -1,0 +1,129 @@
+/* =========================
+   TABLET (768px - 1024px)
+========================= */
+@media (max-width: 1024px) {
+
+  .add-user-card {
+    padding: 20px;
+  }
+
+  .add-user-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .add-user-row .field {
+    width: 48%;
+  }
+
+  .add-user-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .timing-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .day {
+    width: 80px;
+  }
+
+  .time-box {
+    flex: 1;
+  }
+
+}
+
+
+/* =========================
+   MOBILE (max 768px)
+========================= */
+@media (max-width: 768px) {
+
+  .add-user-page {
+    padding: 10px;
+  }
+
+  .add-user-card {
+    padding: 15px;
+    border-radius: 8px;
+  }
+
+  /* FORM ROW STACK */
+  .add-user-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .add-user-row .field {
+    width: 100%;
+  }
+
+  /* GRID → SINGLE COLUMN */
+  .add-user-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* TIMING ROW STACK */
+  .timing-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  .day {
+    width: 100%;
+    font-weight: 600;
+  }
+
+  .time-box {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .time-box input {
+    width: 48%;
+  }
+
+  /* TOGGLE ALIGN RIGHT */
+  .switch {
+    align-self: flex-end;
+  }
+
+  /* BUTTONS */
+  .add-user-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .add-user-actions button {
+    width: 100%;
+  }
+
+}
+
+
+/* =========================
+   SMALL MOBILE (max 480px)
+========================= */
+@media (max-width: 480px) {
+
+  .time-box {
+    flex-direction: column;
+  }
+
+  .time-box input {
+    width: 100%;
+  }
+
+  .add-user-avatar img {
+    width: 80px;
+    height: 80px;
+  }
+
+}

@@ -1,0 +1,213 @@
+.timing-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 0;
+  gap: 10px;
+}
+
+.day {
+  width: 100px;
+  font-weight: 500;
+}
+
+.time-box {
+  display: flex;
+  gap: 8px;
+}
+
+.time-box input {
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+.time-box input:disabled {
+  background: #eee;
+  cursor: not-allowed;
+}
+/* Toggle */
+.switch {
+  position: relative;
+  width: 40px;
+  height: 20px;
+}
+
+.switch input {
+  display: none;
+}
+
+.slider {
+  position: absolute;
+  background: #ccc;
+  border-radius: 20px;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.slider:before {
+  content: "";
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+.switch input:checked + .slider {
+  background: red;
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+.services-provider-row {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(160px, 1fr)) auto;
+	gap: 20px;
+	align-items: end;
+	padding: 10px 12px;
+	border-radius: 12px;
+	background: var(--color-light-bg);
+}
+
+
+
+/* =========================
+   TABLET (768px - 1024px)
+========================= */
+@media (max-width: 1024px) {
+
+  .add-user-card {
+    padding: 20px;
+  }
+
+  .add-user-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .add-user-row .field {
+    width: 48%;
+  }
+
+  .add-user-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .timing-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .day {
+    width: 80px;
+  }
+
+  .time-box {
+    flex: 1;
+  }
+
+}
+
+
+/* =========================
+   MOBILE (max 768px)
+========================= */
+@media (max-width: 768px) {
+
+  .add-user-page {
+    padding: 10px;
+  }
+
+  .add-user-card {
+    padding: 15px;
+    border-radius: 8px;
+  }
+
+  /* FORM ROW STACK */
+  .add-user-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .add-user-row .field {
+    width: 100%;
+  }
+
+  /* GRID → SINGLE COLUMN */
+  .add-user-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* TIMING ROW STACK */
+  .timing-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  .day {
+    width: 100%;
+    font-weight: 600;
+  }
+
+  .time-box {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .time-box input {
+    width: 48%;
+  }
+
+  /* TOGGLE ALIGN RIGHT */
+  .switch {
+    align-self: flex-end;
+  }
+
+  /* BUTTONS */
+  .add-user-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .add-user-actions button {
+    width: 100%;
+  }
+
+}
+
+
+/* =========================
+   SMALL MOBILE (max 480px)
+========================= */
+@media (max-width: 480px) {
+
+  .time-box {
+    flex-direction: column;
+  }
+
+  .time-box input {
+    width: 100%;
+  }
+
+  .add-user-avatar img {
+    width: 80px;
+    height: 80px;
+  }
+
+}
