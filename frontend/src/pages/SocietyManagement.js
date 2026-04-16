@@ -1,12 +1,4 @@
-<<<<<<< HEAD
 import { useEffect, useState } from "react";
-=======
-import { useState } from "react";
-import AdminLayout from "../components/AdminLayout";
->>>>>>> abdul_my_pages
-import { useNavigate } from "react-router-dom";
-import "./UserManagement.css";
-
 
 import AdminLayout from "../layouts/AdminLayout";
 import DataTableLayout from "../layouts/DataTableLayout";
@@ -17,33 +9,36 @@ import ActionButtons from "../components/common/ActionButtons";
 import FilterBar from "../components/common/FilterBar";
 import Modal from "../components/ui/Modal";
 import SocietyForm from "../components/societies/SocietyForm";
+
 import {
-  deleteSociety,
   getSocieties,
+  deleteSociety,
 } from "../services/societyService";
 
 const SocietyManagement = () => {
-  const navigate = useNavigate();
-  const [showFilters, setShowFilters] = useState(false);
-
   const [societies, setSocieties] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null);
+
   const [openModal, setOpenModal] = useState(false);
+  const [selected, setSelected] = useState(null);
   const [viewMode, setViewMode] = useState(false);
+
+  // 🔥 FILTER STATE
   const [filters, setFilters] = useState({
-    address: [],
-  });
-  const [appliedFilters, setAppliedFilters] = useState({
-    address: [],
+    search: "",
   });
 
+  const [appliedFilters, setAppliedFilters] = useState({
+    search: "",
+  });
+
+  // 🔹 FETCH DATA
   const fetchSocieties = async () => {
     try {
       const data = await getSocieties();
       setSocieties(data);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching societies:", err);
     } finally {
       setLoading(false);
     }
@@ -53,38 +48,23 @@ const SocietyManagement = () => {
     fetchSocieties();
   }, []);
 
-  const addressOptions = Array.from(
-    new Set(
-      societies
-        .map((society) => society.address)
-        .filter(Boolean)
-    )
-  );
-
-  const filtersConfig = [
-    {
-      key: "address",
-      label: "Address",
-      options: addressOptions,
-    },
-  ];
-
-  const handleApplyFilters = () => {
-    setAppliedFilters(filters);
-  };
-
-  const handleClearFilters = () => {
-    const empty = { address: [] };
-    setFilters(empty);
-    setAppliedFilters(empty);
-  };
-
+  // 🔹 FILTER LOGIC
   const filteredData = societies.filter((item) => {
+    const search = appliedFilters.search.toLowerCase();
+
     return (
-      appliedFilters.address.length === 0 ||
-      appliedFilters.address.includes(item.address)
+      !search ||
+      item.society_name?.toLowerCase().includes(search) ||
+      item.address?.toLowerCase().includes(search)
     );
   });
+
+  // 🔹 HANDLERS
+  const handleAdd = () => {
+    setSelected(null);
+    setViewMode(false);
+    setOpenModal(true);
+  };
 
   const handleEdit = (row) => {
     setSelected(row);
@@ -103,12 +83,24 @@ const SocietyManagement = () => {
 
     try {
       await deleteSociety(row.society_id);
-      fetchSocieties();
+      fetchSocieties(); // refresh
     } catch (err) {
       console.error(err);
     }
   };
 
+  // 🔹 APPLY FILTER
+  const handleApplyFilters = () => {
+    setAppliedFilters(filters);
+  };
+
+  const handleClearFilters = () => {
+    const empty = { search: "" };
+    setFilters(empty);
+    setAppliedFilters(empty);
+  };
+
+  // 🔹 COLUMNS
   const columns = [
     {
       header: "Sr No",
@@ -138,25 +130,28 @@ const SocietyManagement = () => {
     <AdminLayout>
       <DataTableLayout
         title="Society Management"
+
         filters={
           <FilterBar
-            filtersConfig={filtersConfig}
+            filtersConfig={[
+              {
+                key: "search",
+                label: "Search",
+                type: "text",
+                placeholder: "Search society..."
+              },
+            ]}
             filters={filters}
             setFilters={setFilters}
             onApply={handleApplyFilters}
             onClear={handleClearFilters}
           />
         }
-        actions={
-          <>
-            <Button onClick={() => navigate("/add-society")}>
-              + Add Society
-            </Button>
 
-            <Button variant="primary">
-              Export Data In Excel
-            </Button>
-          </>
+        actions={
+          <Button variant="danger" onClick={handleAdd}>
+            + ADD SOCIETY
+          </Button>
         }
       >
         {loading ? (
@@ -166,7 +161,7 @@ const SocietyManagement = () => {
         )}
       </DataTableLayout>
 
-<<<<<<< HEAD
+      {/* 🔥 MODAL */}
       <Modal
         isOpen={openModal}
         onClose={() => setOpenModal(false)}
@@ -183,105 +178,10 @@ const SocietyManagement = () => {
           readOnly={viewMode}
           onSuccess={() => {
             setOpenModal(false);
-            setSelected(null);
-            fetchSocieties();
+            fetchSocieties(); // refresh
           }}
         />
       </Modal>
-=======
-          <button className="btn outline" type="button">
-            Export Data In Excel
-          </button>
-        </div>
-
-
-
-        <div className="user-card">
-
-
-          <div className="user-card-header">
-            <div className="user-card-top">
-              <h2>Society Management</h2>
-              <button
-                className="filter-toggle"
-                type="button"
-                onClick={() => setShowFilters((prev) => !prev)}
-                aria-expanded={showFilters}
-              >
-                {showFilters ? "Hide Filters" : "Filters"}
-              </button>
-            </div>
-
-
-
-    
-
-            <div className="user-search">
-              <span className="search-icon" aria-hidden="true" />
-              <input placeholder="Search by name" />
-            </div>
-
-          </div>
-
-          {/* Table */}
-          <div className="user-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Sr No</th>
-                  <th>Society</th>
-                  <th>City</th>
-                  <th>State</th>
-                  <th>Country</th>
-                  <th>Name</th>
-                  <th>Email ID</th>
-                  <th>Phone Number</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {users.map((user, index) => (
-                  <tr key={`${user.email}-${index}`}>
-
-                    {/* ✅ Sr No */}
-                    <td data-label="Sr No">{index + 1}</td>
-
-                    <td data-label="Society">{user.society}</td>
-                    <td data-label="City">{user.city}</td>
-                    <td data-label="State">{user.state}</td>
-                    <td data-label="Country">{user.country}</td>
-                    <td data-label="Name">{user.name}</td>
-                    <td data-label="Email ID">{user.email}</td>
-                    <td data-label="Phone Number">{user.phone}</td>
-
-                    <td data-label="Action">
-                      <div className="action-group">
-                        <button
-                          className="icon-btn edit"
-                          type="button"
-                          aria-label="Edit"
-                        />
-                        <button
-                          className="icon-btn delete"
-                          type="button"
-                          aria-label="Delete"
-                        />
-                        <button className="view-btn" type="button">
-                          View
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-
-            </table>
-          </div>
-        </div>
-
-      </div>
->>>>>>> abdul_my_pages
     </AdminLayout>
   );
 };

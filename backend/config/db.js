@@ -1,5 +1,19 @@
 const mysql = require("mysql2/promise");
 
+const requiredEnvVars = ["DB_HOST", "DB_USER", "DB_NAME"];
+const missingEnvVars = requiredEnvVars.filter(
+  (name) => !process.env[name]
+);
+
+if (missingEnvVars.length > 0) {
+  console.error(
+    `Missing database environment variables: ${missingEnvVars.join(", ")}`
+  );
+  console.error(
+    "Create backend/.env with DB_HOST, DB_USER, DB_PASS, DB_NAME, and optional DB_PORT."
+  );
+}
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,

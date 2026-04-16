@@ -1,13 +1,32 @@
 const db = require("../config/db");
 
+const hasColumn = async (tableName, columnName) => {
+  const [rows] = await db.query(
+    `SELECT 1
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND COLUMN_NAME = ?
+     LIMIT 1`,
+    [tableName, columnName]
+  );
+
+  return rows.length > 0;
+};
+
 // ✅ GET ACTIVE SOCIETIES
 exports.getSocieties = async (req, res) => {
   try {
+    const supportsSoftDelete = await hasColumn("societies", "is_active");
     const [rows] = await db.query(
-      "SELECT * FROM societies WHERE is_active = 1 ORDER BY society_id DESC"
+      supportsSoftDelete
+        ? "SELECT * FROM societies WHERE is_active = 1 ORDER BY society_id DESC"
+        : "SELECT * FROM societies ORDER BY society_id DESC"
     );
+
     res.json(rows);
   } catch (err) {
+    console.error("GET SOCIETIES ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -55,16 +74,27 @@ exports.updateSociety = async (req, res) => {
 exports.deleteSociety = async (req, res) => {
   try {
     const { id } = req.params;
+    const supportsSoftDelete = await hasColumn("societies", "is_active");
+
+    if (supportsSoftDelete) {
+      await db.query(
+        `UPDATE societies 
+         SET is_active = 0 
+         WHERE society_id = ?`,
+        [id]
+      );
+
+      return res.json({ message: "Society deactivated successfully" });
+    }
 
     await db.query(
-      `UPDATE societies 
-       SET is_active = 0 
-       WHERE society_id = ?`,
+      "DELETE FROM societies WHERE society_id = ?",
       [id]
     );
 
-    res.json({ message: "Society deactivated successfully" });
+    res.json({ message: "Society deleted successfully" });
   } catch (err) {
+    console.error("DELETE SOCIETY ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 };

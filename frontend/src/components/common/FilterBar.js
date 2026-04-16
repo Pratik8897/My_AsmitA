@@ -3,7 +3,7 @@ import Select from "react-select";
 
 const FilterBar = ({
   filtersConfig = [],
-  filters,
+  filters = {},
   setFilters,
   onApply,
   onClear,
@@ -14,6 +14,13 @@ const FilterBar = ({
       [key]: selectedOptions
         ? selectedOptions.map((opt) => opt.value)
         : [],
+    }));
+  };
+
+  const handleTextChange = (key, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
     }));
   };
 
@@ -30,21 +37,33 @@ const FilterBar = ({
               {filter.label}
             </label>
 
-            <Select
-              isMulti
-              options={filter.options.map((opt) => ({
-                label: opt,
-                value: opt,
-              }))}
-              value={filter.options
-                .filter((opt) => filters[filter.key].includes(opt))
-                .map((opt) => ({ label: opt, value: opt }))}
-              onChange={(selected) =>
-                handleChange(filter.key, selected)
-              }
-              className="text-sm"
-              classNamePrefix="react-select"
-            />
+            {filter.type === "text" ? (
+              <input
+                type="text"
+                value={filters[filter.key] ?? ""}
+                onChange={(e) =>
+                  handleTextChange(filter.key, e.target.value)
+                }
+                placeholder={filter.placeholder || `Enter ${filter.label}`}
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            ) : (
+              <Select
+                isMulti
+                options={(filter.options ?? []).map((opt) => ({
+                  label: opt,
+                  value: opt,
+                }))}
+                value={(filter.options ?? [])
+                  .filter((opt) => (filters[filter.key] ?? []).includes(opt))
+                  .map((opt) => ({ label: opt, value: opt }))}
+                onChange={(selected) =>
+                  handleChange(filter.key, selected)
+                }
+                className="text-sm"
+                classNamePrefix="react-select"
+              />
+            )}
           </div>
         ))}
 

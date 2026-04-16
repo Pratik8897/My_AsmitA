@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import AdminLayout from "../components/AdminLayout";
+import AdminLayout from "../layouts/AdminLayout";
 import "./AddUser.css";
 
 const AddParkingSlot = () => {
