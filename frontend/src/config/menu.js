@@ -64,24 +64,14 @@ export const menuItems = [
     icon: Squares2X2Icon,
     roles: ["admin"],
   },
-  {
-    label: "Ads",
-    path: "/ads",
-    icon: MegaphoneIcon,
-    roles: ["admin"],
-  },
+  
   {
     label: "Amenities",
     path: "/amenities",
     icon: SparklesIcon,
     roles: ["admin"],
   },
-  {
-    label: "Booking",
-    path: "/booking",
-    icon: CalendarDaysIcon,
-    roles: ["admin"],
-  },
+
   {
     label: "Parking Management",
     path: "/parking-management",

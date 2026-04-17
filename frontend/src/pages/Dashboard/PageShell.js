@@ -1,0 +1,17 @@
+import AdminLayout from "../../layouts/AdminLayout";
+import "./PageShell.css";
+
+const PageShell = ({ title }) => {
+  return (
+    <AdminLayout title={title}>
+      <div className="page-shell">
+        <div className="page-shell-card">
+          <h1>{title}</h1>
+          <p>This page is ready for your content.</p>
+        </div>
+      </div>
+    </AdminLayout>
+  );
+};
+
+export default PageShell;

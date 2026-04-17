@@ -1,33 +1,33 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Login from "../pages/Login";
-import Dashboard from "../pages/Dashboard";
-import UserManagement from "../pages/UserManagement";
-import AddUser from "../pages/AddUser";
-import AddSociety from "../pages/AddSociety";
-import AddAdmin from "../pages/AddAdmin";
-import AddService from "../pages/AddService";
-import AddServicesProvider  from "../pages/AddServicesProvider";
-import SocietyManagement from "../pages/SocietyManagement";
-import SocietyAdmin from "../pages/SocietyAdmin";
-import Services from "../pages/Services";
-import ServicesProviders from "../pages/ServicesProviders";
-import ServiceUsed from "../pages/ServiceUsed";
-import FloorSummary from "../pages/FloorSummary";
-import Ads from "../pages/Ads";
-import AddAds from "../pages/AddAds";
-import AddAmenity from "../pages/AddAmenity.js";
-import Amenities from "../pages/Amenities";
-import Booking from "../pages/Booking";
-import ParkingManagement from "../pages/ParkingManagement";
-import AddParkingSlot from "../pages/AddParkingSlot";
-import AssignParkingSlot from "../pages/AssignParkingSlot";
-import Support from "../pages/Support";
-import Settings from "../pages/Settings";
-import Faq from "../pages/AddFaq";
-import AboutUs from "../pages/AboutUs";
-import ContactUs from "../pages/ContactUs";
-import TermsConditions from "../pages/TermsConditions";
-import PrivacyPolicy from "../pages/PrivacyPolicy";
+import Login from "../pages/Dashboard/Login.js";
+import Dashboard from "../pages/Dashboard/Dashboard";
+import UserManagement from "../pages/User/UserManagement";
+import AddUser from "../pages/User/AddUser";
+import AddSociety from "../pages/Society/AddSociety.js";
+import AddAdmin from "../pages/User/AddAdmin";
+import AddService from "../pages/ServicesProvider/AddService.js";
+import AddServicesProvider  from "../pages/ServicesProvider/AddServicesProvider.js";
+import SocietyManagement from "../pages/Society/SocietyManagement.js";
+import SocietyAdmin from "../pages/Society/SocietyAdmin.js";
+import Services from "../pages/ServicesProvider/Services.js";
+import ServicesProviders from "../pages/ServicesProvider/ServicesProviders.js";
+import ServiceUsed from "../pages/ServicesProvider/ServiceUsed.js";
+import FloorSummary from "../pages/Society/FloorSummary.js";
+// import Ads from "../pages/Ads";
+// import AddAds from "../pages/AddAds";
+import AddAmenity from "../pages/Amenities/AddAmenity.js";
+import Amenities from "../pages/Amenities/Amenities.js";
+// import Booking from "../pages/Booking";
+import ParkingManagement from "../pages/Parking/ParkingManagement.js";
+import AddParkingSlot from "../pages/Parking/AddParkingSlot.js";
+import AssignParkingSlot from "../pages/Parking/AssignParkingSlot.js";
+import Support from "../pages/SupportTicket/Support.js";
+import Settings from "../pages/Settings/Settings";
+import Faq from "../pages/FAQ/AddFaq.js";
+import AboutUs from "../pages/AboutUs/AboutUs.js";
+import ContactUs from "../pages/AboutUs/ContactUs";
+import TermsConditions from "../pages/legal/TermsConditions.js";
+import PrivacyPolicy from "../pages/legal/PrivacyPolicy.js";
 
 const AppRoutes = () => {
   return (
@@ -47,11 +47,11 @@ const AppRoutes = () => {
         <Route path="/services-providers" element={<ServicesProviders />} />
         <Route path="/service-used" element={<ServiceUsed />} />
         <Route path="/floor-summary" element={<FloorSummary />} />
-        <Route path="/add-ads" element={<AddAds />} />
-        <Route path="/ads" element={<Ads />} />
+        {/* <Route path="/add-ads" element={<AddAds />} />
+        <Route path="/ads" element={<Ads />} /> */}
         <Route path="/amenities" element={<Amenities />} />
         <Route path="/add-amenity" element={<AddAmenity />} />
-        <Route path="/booking" element={<Booking />} />
+        {/* <Route path="/booking" element={<Booking />} /> */}
         <Route path="/parking-management" element={<ParkingManagement />} />
         <Route path="/add-parking-slot" element={<AddParkingSlot />} />
         <Route path="/assign-parking-slot" element={<AssignParkingSlot />} />
