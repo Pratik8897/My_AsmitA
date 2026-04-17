@@ -109,7 +109,7 @@ const DataTable = ({ columns = [], data = [] }) => {
                     className="px-4 py-3 text-gray-700 dark:text-gray-200"
                   >
                     {col.render
-                      ? col.render(row)
+                      ? col.render(row, (page - 1) * pageSize + i)
                       : getValue(row, col.accessor)}
                   </td>
                 ))}
@@ -145,7 +145,7 @@ const DataTable = ({ columns = [], data = [] }) => {
 
                   <span className="text-sm text-gray-800 dark:text-gray-200">
                     {col.render
-                      ? col.render(row)
+                      ? col.render(row, (page - 1) * pageSize + i)
                       : getValue(row, col.accessor)}
                   </span>
                 </div>

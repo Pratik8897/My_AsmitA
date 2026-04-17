@@ -1,19 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createUser, updateUser } from "../../services/userService";
 
-const initialForm = {
+const baseForm = {
   full_name: "",
   email_id: "",
   mobile_number: "",
   gender: "Male",
-  user_type: "Owner",
+  user_type: "User",
   os_type: "Android",
   password_hash: "",
 };
 
-const UserForm = ({ user, readOnly = false, onSuccess }) => {
-  const [form, setForm] = useState(initialForm);
+const mobileNumberPattern = /^\d{10}$/;
+
+const getInitialForm = (roles = []) => ({
+  ...baseForm,
+  user_type: roles[0] || baseForm.user_type,
+});
+
+const UserForm = ({
+  user,
+  readOnly = false,
+  onSuccess,
+  roles = [],
+}) => {
+  const [form, setForm] = useState(getInitialForm(roles));
   const [error, setError] = useState("");
+  const roleOptions = useMemo(
+    () => Array.from(new Set([...roles, user?.user_type].filter(Boolean))),
+    [roles, user?.user_type]
+  );
 
   useEffect(() => {
     if (user) {
@@ -22,7 +38,7 @@ const UserForm = ({ user, readOnly = false, onSuccess }) => {
         email_id: user.email_id || "",
         mobile_number: user.mobile_number || "",
         gender: user.gender || "Male",
-        user_type: user.user_type || "Owner",
+        user_type: user.user_type || roleOptions[0] || baseForm.user_type,
         os_type: user.os_type || "Android",
         password_hash: "",
       });
@@ -30,19 +46,32 @@ const UserForm = ({ user, readOnly = false, onSuccess }) => {
       return;
     }
 
-    setForm(initialForm);
+    setForm(getInitialForm(roleOptions));
     setError("");
-  }, [user]);
+  }, [user, roleOptions]);
 
   const handleChange = (e) => {
     if (readOnly) return;
 
     setError("");
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    if (name === "mobile_number") {
+      const sanitizedValue = value.replace(/\D/g, "").slice(0, 10);
+      setForm({ ...form, [name]: sanitizedValue });
+      return;
+    }
+
+    setForm({ ...form, [name]: value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!mobileNumberPattern.test(form.mobile_number)) {
+      setError("Mobile number must be exactly 10 digits.");
+      return;
+    }
 
     try {
       if (user) {
@@ -92,6 +121,8 @@ const UserForm = ({ user, readOnly = false, onSuccess }) => {
         onChange={handleChange}
         disabled={readOnly}
         placeholder="Mobile"
+        inputMode="numeric"
+        maxLength={10}
         className="input"
       />
 
@@ -113,10 +144,11 @@ const UserForm = ({ user, readOnly = false, onSuccess }) => {
         disabled={readOnly}
         className="input"
       >
-        <option>Owner</option>
-        <option>Tenant</option>
-        <option>Super Admin</option>
-        <option>Society Admin</option>
+        {roleOptions.map((role) => (
+          <option key={role} value={role}>
+            {role}
+          </option>
+        ))}
       </select>
 
       <select

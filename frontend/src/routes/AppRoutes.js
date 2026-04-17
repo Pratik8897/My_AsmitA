@@ -22,6 +22,7 @@ import ParkingManagement from "../pages/ParkingManagement";
 import AddParkingSlot from "../pages/AddParkingSlot";
 import AssignParkingSlot from "../pages/AssignParkingSlot";
 import Support from "../pages/Support";
+import Settings from "../pages/Settings";
 import Faq from "../pages/AddFaq";
 import AboutUs from "../pages/AboutUs";
 import ContactUs from "../pages/ContactUs";
@@ -55,6 +56,7 @@ const AppRoutes = () => {
         <Route path="/add-parking-slot" element={<AddParkingSlot />} />
         <Route path="/assign-parking-slot" element={<AssignParkingSlot />} />
         <Route path="/support" element={<Support />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/add-faq" element={<Faq />} />
         <Route path="/about-us" element={<AboutUs />} />
         <Route path="/contact-us" element={<ContactUs />} />

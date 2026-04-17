@@ -12,6 +12,7 @@ import {
   CalendarDaysIcon,
   TruckIcon,
   LifebuoyIcon,
+  Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
 
 export const menuItems = [
@@ -92,5 +93,11 @@ export const menuItems = [
     path: "/support",
     icon: LifebuoyIcon,
     roles: ["admin", "hospital"],
+  },
+  {
+    label: "Settings",
+    path: "/settings",
+    icon: Cog6ToothIcon,
+    roles: ["admin"],
   },
 ];

@@ -1,6 +1,17 @@
 import React from "react";
 import Select from "react-select";
 
+const selectStyles = {
+  menuPortal: (base) => ({
+    ...base,
+    zIndex: 9999,
+  }),
+  menu: (base) => ({
+    ...base,
+    zIndex: 9999,
+  }),
+};
+
 const FilterBar = ({
   filtersConfig = [],
   filters = {},
@@ -60,6 +71,11 @@ const FilterBar = ({
                 onChange={(selected) =>
                   handleChange(filter.key, selected)
                 }
+                menuPortalTarget={
+                  typeof document !== "undefined" ? document.body : null
+                }
+                menuPosition="fixed"
+                styles={selectStyles}
                 className="text-sm"
                 classNamePrefix="react-select"
               />

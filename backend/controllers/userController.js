@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const mobileNumberPattern = /^\d{10}$/;
 
 const findDuplicateUser = async ({
   email_id,
@@ -8,7 +9,8 @@ const findDuplicateUser = async ({
   const [rows] = await db.query(
     `SELECT user_id, email_id, mobile_number
      FROM users
-     WHERE (LOWER(email_id) = LOWER(?) OR mobile_number = ?)
+     WHERE is_active = 1
+       AND (LOWER(email_id) = LOWER(?) OR mobile_number = ?)
        AND (? IS NULL OR user_id <> ?)
      LIMIT 1`,
     [email_id, mobile_number, excludeUserId, excludeUserId]
@@ -40,6 +42,13 @@ exports.createUser = async (req, res) => {
       os_type,
       password_hash,
     } = req.body;
+
+    if (!mobileNumberPattern.test(String(mobile_number || ""))) {
+      return res.status(400).json({
+        error: "Mobile number must be exactly 10 digits.",
+        field: "mobile_number",
+      });
+    }
 
     const duplicateUser = await findDuplicateUser({
       email_id,
@@ -97,6 +106,13 @@ exports.updateUser = async (req, res) => {
       user_type,
       os_type,
     } = req.body;
+
+    if (!mobileNumberPattern.test(String(mobile_number || ""))) {
+      return res.status(400).json({
+        error: "Mobile number must be exactly 10 digits.",
+        field: "mobile_number",
+      });
+    }
 
     const duplicateUser = await findDuplicateUser({
       email_id,

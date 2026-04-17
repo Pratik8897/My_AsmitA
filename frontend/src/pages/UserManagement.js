@@ -12,6 +12,11 @@ import ActionButtons from "../components/common/ActionButtons";
 import Modal from "../components/ui/Modal";
 import UserForm from "../components/users/UserForm";
 import FilterBar from "../components/common/FilterBar";
+import {
+  APP_SETTINGS_EVENT,
+  getRoleNames,
+  defaultAppSettings,
+} from "../services/appSettingsService";
 
 import {
   getUsers,
@@ -26,6 +31,9 @@ const UserManagement = () => {
   const [openModal, setOpenModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [viewMode, setViewMode] = useState(false);
+  const [roleOptions, setRoleOptions] = useState(
+    defaultAppSettings.roles.map((role) => role.name)
+  );
 
   // 🔥 MULTI FILTER STATE
   const [filters, setFilters] = useState({
@@ -55,7 +63,7 @@ const UserManagement = () => {
     {
       key: "user_type",
       label: "User Type",
-      options: ["Owner", "Tenant", "Super Admin", "Society Admin"],
+      options: roleOptions,
     },
   ];
 
@@ -84,6 +92,20 @@ const UserManagement = () => {
   useEffect(() => {
     fetchUsers();
     fetchStats();
+  }, []);
+
+  useEffect(() => {
+    const syncRoles = async () => {
+      const roles = await getRoleNames();
+      setRoleOptions(roles);
+    };
+
+    syncRoles();
+    window.addEventListener(APP_SETTINGS_EVENT, syncRoles);
+
+    return () => {
+      window.removeEventListener(APP_SETTINGS_EVENT, syncRoles);
+    };
   }, []);
 
   // 🔥 APPLY FILTERS
@@ -214,6 +236,7 @@ const UserManagement = () => {
         <UserForm
           user={selectedUser}
           readOnly={viewMode}
+          roles={roleOptions}
           onSuccess={() => {
             setOpenModal(false);
             fetchUsers();
