@@ -1,6 +1,7 @@
 import api from "./api";
 
 export const APP_SETTINGS_EVENT = "myasmita:settings-updated";
+export const RESIDENT_ROLE_SCOPES = ["resident"];
 export const defaultRoleRestrictions = {
   canManageUsers: false,
   canManageSocieties: false,
@@ -206,3 +207,12 @@ export const getRoleNames = async () => {
 export const getDefaultRestrictions = () => ({
   ...defaultAppSettings.restrictions,
 });
+
+export const isResidentRole = (role) =>
+  RESIDENT_ROLE_SCOPES.includes(String(role?.scope || "").toLowerCase());
+
+export const getResidentRoles = (settings = defaultAppSettings) =>
+  (settings.roles || []).filter(isResidentRole);
+
+export const getManagementRoles = (settings = defaultAppSettings) =>
+  (settings.roles || []).filter((role) => !isResidentRole(role));
