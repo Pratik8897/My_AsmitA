@@ -1,14 +1,5 @@
-import axios from "axios";
+import api from "./api";
 
-// 🔥 Create reusable axios instance
-const api = axios.create({
-  baseURL: "http://localhost:5000/api",
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-// ✅ GET USERS
 export const getUsers = async () => {
   try {
     const res = await api.get("/users");
@@ -19,7 +10,6 @@ export const getUsers = async () => {
   }
 };
 
-// ✅ CREATE USER
 export const createUser = async (data) => {
   try {
     const res = await api.post("/users", data);
@@ -30,7 +20,6 @@ export const createUser = async (data) => {
   }
 };
 
-// ✅ DELETE (SOFT DELETE)
 export const deleteUser = async (id) => {
   try {
     const res = await api.delete(`/users/${id}`);
@@ -41,7 +30,6 @@ export const deleteUser = async (id) => {
   }
 };
 
-// ✅ UPDATE USER
 export const updateUser = async (id, data) => {
   try {
     const res = await api.put(`/users/${id}`, data);

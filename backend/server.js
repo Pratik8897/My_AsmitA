@@ -10,6 +10,7 @@ require("./config/db");
 // Routes
 const userRoutes = require("./routes/userRoutes");
 const societyRoutes = require("./routes/societyRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
 
 // Middleware
@@ -24,6 +25,7 @@ app.get("/", (req, res) => {
 // ✅ Users API
 app.use("/api/users", userRoutes);
 app.use("/api/societies", societyRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/settings", settingsRoutes);
 
 // ❗ TEMP: Comment auth until ready
