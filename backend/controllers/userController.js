@@ -9,7 +9,7 @@ const findDuplicateUser = async ({
   const [rows] = await db.query(
     `SELECT user_id, email_id, mobile_number
      FROM users
-     WHERE is_active = 1
+     WHERE COALESCE(is_active, 1) = 1
        AND (LOWER(email_id) = LOWER(?) OR mobile_number = ?)
        AND (? IS NULL OR user_id <> ?)
      LIMIT 1`,
@@ -22,7 +22,7 @@ const findDuplicateUser = async ({
 exports.getUsers = async (req, res) => {
   try {
     const [rows] = await db.query(
-      "SELECT * FROM users WHERE is_active = 1"
+      "SELECT * FROM users WHERE COALESCE(is_active, 1) = 1"
     );
     res.json(rows);
   } catch (err) {
@@ -38,6 +38,7 @@ exports.createUser = async (req, res) => {
       email_id,
       mobile_number,
       gender,
+      account_type,
       user_type,
       os_type,
       password_hash,
@@ -72,13 +73,14 @@ exports.createUser = async (req, res) => {
 
     const [result] = await db.query(
       `INSERT INTO users
-       (full_name, email_id, mobile_number, gender, user_type, os_type, password_hash)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (full_name, email_id, mobile_number, gender, account_type, user_type, os_type, password_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         full_name,
         email_id,
         mobile_number,
         gender,
+        account_type || "app",
         user_type,
         os_type,
         password_hash,
@@ -103,8 +105,10 @@ exports.updateUser = async (req, res) => {
       email_id,
       mobile_number,
       gender,
+      account_type,
       user_type,
       os_type,
+      password_hash,
     } = req.body;
 
     if (!mobileNumberPattern.test(String(mobile_number || ""))) {
@@ -135,12 +139,40 @@ exports.updateUser = async (req, res) => {
       });
     }
 
-    await db.query(
-      `UPDATE users
-       SET full_name = ?, email_id = ?, mobile_number = ?, gender = ?, user_type = ?, os_type = ?
-       WHERE user_id = ?`,
-      [full_name, email_id, mobile_number, gender, user_type, os_type, id]
-    );
+    if (password_hash) {
+      await db.query(
+        `UPDATE users
+         SET full_name = ?, email_id = ?, mobile_number = ?, gender = ?, account_type = ?, user_type = ?, os_type = ?, password_hash = ?
+         WHERE user_id = ?`,
+        [
+          full_name,
+          email_id,
+          mobile_number,
+          gender,
+          account_type || "app",
+          user_type,
+          os_type,
+          password_hash,
+          id,
+        ]
+      );
+    } else {
+      await db.query(
+        `UPDATE users
+         SET full_name = ?, email_id = ?, mobile_number = ?, gender = ?, account_type = ?, user_type = ?, os_type = ?
+         WHERE user_id = ?`,
+        [
+          full_name,
+          email_id,
+          mobile_number,
+          gender,
+          account_type || "app",
+          user_type,
+          os_type,
+          id,
+        ]
+      );
+    }
 
     res.json({ message: "User updated" });
   } catch (err) {
@@ -172,11 +204,11 @@ exports.getUserStats = async (req, res) => {
     );
 
     const [[active]] = await db.query(
-      "SELECT COUNT(*) as active FROM users WHERE is_active = 1"
+      "SELECT COUNT(*) as active FROM users WHERE COALESCE(is_active, 1) = 1"
     );
 
     const [[inactive]] = await db.query(
-      "SELECT COUNT(*) as inactive FROM users WHERE is_active = 0"
+      "SELECT COUNT(*) as inactive FROM users WHERE COALESCE(is_active, 1) = 0"
     );
 
     res.json({

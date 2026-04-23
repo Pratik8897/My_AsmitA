@@ -1,11 +1,11 @@
-import API from "../../services/api";
-import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import API from "../../services/api";
+import { setAuthSession } from "../../services/authService";
 import "./Login.css";
 
 const Login = () => {
   const navigate = useNavigate();
-
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -14,15 +14,19 @@ const Login = () => {
 
   const handleLogin = async (event) => {
     event.preventDefault();
+
     try {
       const res = await API.post("/auth/login", form);
 
       if (res.data.success) {
-        localStorage.setItem("token", res.data.token);
+        setAuthSession({
+          token: res.data.token,
+          user: res.data.user,
+        });
         navigate("/dashboard");
       }
     } catch (err) {
-      alert("Login failed");
+      alert(err.response?.data?.message || "Login failed");
     }
   };
 
@@ -37,15 +41,6 @@ const Login = () => {
         </aside>
 
         <form className="login-panel" onSubmit={handleLogin}>
-          {/* <button
-            className="login-close"
-            type="button"
-            aria-label="Close login"
-            onClick={() => navigate(-1)}
-          >
-            ×
-          </button> */}
-
           <div className="login-header">
             <h1>Welcome back!</h1>
             <p>Happy to see you again!</p>

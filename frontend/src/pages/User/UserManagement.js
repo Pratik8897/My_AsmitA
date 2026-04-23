@@ -1,59 +1,55 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./UserManagement.css";
 
 import AdminLayout from "../../layouts/AdminLayout";
 import DataTableLayout from "../../layouts/DataTableLayout";
 import DataTable from "../../components/common/DataTable";
-
 import StatCard from "../../components/ui/StatCard";
 import Button from "../../components/ui/Button";
 import ActionButtons from "../../components/common/ActionButtons";
-
 import Modal from "../../components/ui/Modal";
 import UserForm from "../../components/users/UserForm";
 import FilterBar from "../../components/common/FilterBar";
 import {
   APP_SETTINGS_EVENT,
-  getRoleNames,
   defaultAppSettings,
+  getAppSettings,
+  getResidentRoles,
 } from "../../services/appSettingsService";
-
-import {
-  getUsers,
-  deleteUser,
-  getUserStats,
-} from "../../services/userService";
+import { deleteUser, getUsers } from "../../services/userService";
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [openModal, setOpenModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [viewMode, setViewMode] = useState(false);
   const [roleOptions, setRoleOptions] = useState(
-    defaultAppSettings.roles.map((role) => role.name)
+    getResidentRoles(defaultAppSettings).map((role) => role.name)
   );
-
-  // 🔥 MULTI FILTER STATE
   const [filters, setFilters] = useState({
     os_type: [],
     user_type: [],
   });
-
   const [appliedFilters, setAppliedFilters] = useState({
     os_type: [],
     user_type: [],
   });
 
-  // 🔥 STATS
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    inactive: 0,
-  });
+  const appUsers = useMemo(
+    () => users,
+    [users]
+  );
 
-  // 🔥 FILTER CONFIG
+  const stats = useMemo(
+    () => ({
+      total: appUsers.length,
+      active: appUsers.length,
+      inactive: 0,
+    }),
+    [appUsers.length]
+  );
+
   const filtersConfig = [
     {
       key: "os_type",
@@ -67,7 +63,6 @@ const UserManagement = () => {
     },
   ];
 
-  // 🔹 Fetch Users
   const fetchUsers = async () => {
     try {
       const data = await getUsers();
@@ -79,25 +74,18 @@ const UserManagement = () => {
     }
   };
 
-  // 🔹 Fetch Stats
-  const fetchStats = async () => {
-    try {
-      const res = await getUserStats();
-      setStats(res);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   useEffect(() => {
     fetchUsers();
-    fetchStats();
   }, []);
 
   useEffect(() => {
     const syncRoles = async () => {
-      const roles = await getRoleNames();
-      setRoleOptions(roles);
+      const settings = await getAppSettings();
+      const residentRoleNames = getResidentRoles(settings).map(
+        (role) => role.name
+      );
+
+      setRoleOptions(residentRoleNames);
     };
 
     syncRoles();
@@ -108,20 +96,17 @@ const UserManagement = () => {
     };
   }, []);
 
-  // 🔥 APPLY FILTERS
   const handleApplyFilters = () => {
     setAppliedFilters(filters);
   };
 
-  // 🔥 CLEAR FILTERS
   const handleClearFilters = () => {
     const empty = { os_type: [], user_type: [] };
     setFilters(empty);
     setAppliedFilters(empty);
   };
 
-  // 🔥 FILTER LOGIC (FINAL FIX)
-  const filteredUsers = users.filter((user) => {
+  const filteredUsers = appUsers.filter((user) => {
     return (
       (appliedFilters.os_type.length === 0 ||
         appliedFilters.os_type.includes(user.os_type)) &&
@@ -130,14 +115,14 @@ const UserManagement = () => {
     );
   });
 
-  // 🔹 Handlers
   const handleDelete = async (row) => {
-    if (!window.confirm("Deactivate this user?")) return;
+    if (!window.confirm("Deactivate this user?")) {
+      return;
+    }
 
     try {
       await deleteUser(row.user_id);
       fetchUsers();
-      fetchStats();
     } catch (err) {
       console.error(err);
     }
@@ -155,7 +140,6 @@ const UserManagement = () => {
     setOpenModal(true);
   };
 
-  // 🔹 Columns
   const columns = [
     { header: "Name", accessor: "full_name" },
     { header: "Email ID", accessor: "email_id" },
@@ -179,18 +163,14 @@ const UserManagement = () => {
   return (
     <AdminLayout>
       <DataTableLayout
-        title="User Management"
-
-
+        title="App User Management"
         stats={
           <div className="flex flex-wrap gap-4">
-            <StatCard title="Total Users" value={stats.total} />
-            <StatCard title="Active Users" value={stats.active} />
-            <StatCard title="Inactive Users" value={stats.inactive} />
+            <StatCard title="App Users" value={stats.total} />
+            <StatCard title="Active App Users" value={stats.active} />
+            <StatCard title="Inactive App Users" value={stats.inactive} />
           </div>
         }
-
-
         filters={
           <FilterBar
             filtersConfig={filtersConfig}
@@ -200,7 +180,6 @@ const UserManagement = () => {
             onClear={handleClearFilters}
           />
         }
-
         actions={
           <Button
             variant="danger"
@@ -210,37 +189,38 @@ const UserManagement = () => {
               setOpenModal(true);
             }}
           >
-            + ADD NEW USER
+            + ADD APP USER
           </Button>
         }
       >
         {loading ? (
-          <p className="p-4 text-gray-500">Loading users...</p>
+          <p className="p-4 text-gray-500">Loading app users...</p>
         ) : (
           <DataTable columns={columns} data={filteredUsers} />
         )}
       </DataTableLayout>
 
-      {/* 🔥 MODAL */}
       <Modal
         isOpen={openModal}
         onClose={() => setOpenModal(false)}
         title={
           viewMode
-            ? "View User"
+            ? "View App User"
             : selectedUser
-            ? "Edit User"
-            : "Add New User"
+            ? "Edit App User"
+            : "Add App User"
         }
       >
         <UserForm
           user={selectedUser}
           readOnly={viewMode}
           roles={roleOptions}
+          accountType="app"
+          formTitle="App User Details"
+          roleLabel="App Role"
           onSuccess={() => {
             setOpenModal(false);
             fetchUsers();
-            fetchStats();
           }}
         />
       </Modal>
