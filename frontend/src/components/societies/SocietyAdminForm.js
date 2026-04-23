@@ -108,5 +108,5 @@ const SocietyAdminForm = ({ society, readOnly = false, onSuccess }) => {
 
         </form>
     );
-};
+};  
 export default SocietyAdminForm;
