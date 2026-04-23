@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createUser, updateUser } from "../../services/userService";
+import PasswordField from "../ui/PasswordField";
 
 const baseForm = {
   full_name: "",
@@ -13,6 +14,7 @@ const baseForm = {
 };
 
 const mobileNumberPattern = /^\d{10}$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const getInitialForm = (roles = [], accountType = baseForm.account_type) => ({
   ...baseForm,
@@ -93,6 +95,16 @@ const UserForm = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!form.full_name.trim()) {
+      setError("Full name is required.");
+      return;
+    }
+
+    if (!emailPattern.test(form.email_id.trim().toLowerCase())) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
     if (!mobileNumberPattern.test(form.mobile_number)) {
       setError("Mobile number must be exactly 10 digits.");
       return;
@@ -156,11 +168,13 @@ const UserForm = ({
             Email
           </span>
           <input
+            type="email"
             name="email_id"
             value={form.email_id}
             onChange={handleChange}
             disabled={readOnly}
             placeholder="Email"
+            required
             className={fieldClassName}
           />
         </label>
@@ -170,6 +184,7 @@ const UserForm = ({
             Mobile Number
           </span>
           <input
+            type="tel"
             name="mobile_number"
             value={form.mobile_number}
             onChange={handleChange}
@@ -177,6 +192,7 @@ const UserForm = ({
             placeholder="Mobile"
             inputMode="numeric"
             maxLength={10}
+            required
             className={fieldClassName}
           />
         </label>
@@ -214,19 +230,16 @@ const UserForm = ({
         </label>
 
         {showPasswordField && !readOnly && (
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">
-              {passwordLabel}
-            </span>
-            <input
-              type="password"
-              name="password_hash"
-              value={form.password_hash}
-              onChange={handleChange}
-              placeholder={user ? "Leave blank to keep current password" : "Password"}
-              className={fieldClassName}
-            />
-          </label>
+          <PasswordField
+            label={passwordLabel}
+            name="password_hash"
+            value={form.password_hash}
+            onChange={handleChange}
+            placeholder={
+              user ? "Leave blank to keep current password" : "Password"
+            }
+            required={passwordRequired}
+          />
         )}
 
         {showGenderField && (

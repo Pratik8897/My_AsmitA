@@ -1,5 +1,11 @@
 const db = require("../config/db");
 const mobileNumberPattern = /^\d{10}$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizeMobileNumber = (value = "") =>
+  String(value || "")
+    .replace(/\D/g, "")
+    .slice(0, 10);
 
 const findDuplicateUser = async ({
   email_id,
@@ -44,7 +50,24 @@ exports.createUser = async (req, res) => {
       password_hash,
     } = req.body;
 
-    if (!mobileNumberPattern.test(String(mobile_number || ""))) {
+    const normalizedEmail = String(email_id || "").trim().toLowerCase();
+    const normalizedMobile = normalizeMobileNumber(mobile_number);
+
+    if (!full_name?.trim()) {
+      return res.status(400).json({
+        error: "Full name is required.",
+        field: "full_name",
+      });
+    }
+
+    if (!emailPattern.test(normalizedEmail)) {
+      return res.status(400).json({
+        error: "Please enter a valid email address.",
+        field: "email_id",
+      });
+    }
+
+    if (!mobileNumberPattern.test(normalizedMobile)) {
       return res.status(400).json({
         error: "Mobile number must be exactly 10 digits.",
         field: "mobile_number",
@@ -52,13 +75,13 @@ exports.createUser = async (req, res) => {
     }
 
     const duplicateUser = await findDuplicateUser({
-      email_id,
-      mobile_number,
+      email_id: normalizedEmail,
+      mobile_number: normalizedMobile,
     });
 
     if (duplicateUser) {
       const duplicateField =
-        duplicateUser.email_id?.toLowerCase() === email_id?.toLowerCase()
+        duplicateUser.email_id?.toLowerCase() === normalizedEmail
           ? "email_id"
           : "mobile_number";
 
@@ -77,8 +100,8 @@ exports.createUser = async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         full_name,
-        email_id,
-        mobile_number,
+        normalizedEmail,
+        normalizedMobile,
         gender,
         account_type || "app",
         user_type,
@@ -111,7 +134,24 @@ exports.updateUser = async (req, res) => {
       password_hash,
     } = req.body;
 
-    if (!mobileNumberPattern.test(String(mobile_number || ""))) {
+    const normalizedEmail = String(email_id || "").trim().toLowerCase();
+    const normalizedMobile = normalizeMobileNumber(mobile_number);
+
+    if (!full_name?.trim()) {
+      return res.status(400).json({
+        error: "Full name is required.",
+        field: "full_name",
+      });
+    }
+
+    if (!emailPattern.test(normalizedEmail)) {
+      return res.status(400).json({
+        error: "Please enter a valid email address.",
+        field: "email_id",
+      });
+    }
+
+    if (!mobileNumberPattern.test(normalizedMobile)) {
       return res.status(400).json({
         error: "Mobile number must be exactly 10 digits.",
         field: "mobile_number",
@@ -119,14 +159,14 @@ exports.updateUser = async (req, res) => {
     }
 
     const duplicateUser = await findDuplicateUser({
-      email_id,
-      mobile_number,
+      email_id: normalizedEmail,
+      mobile_number: normalizedMobile,
       excludeUserId: id,
     });
 
     if (duplicateUser) {
       const duplicateField =
-        duplicateUser.email_id?.toLowerCase() === email_id?.toLowerCase()
+        duplicateUser.email_id?.toLowerCase() === normalizedEmail
           ? "email_id"
           : "mobile_number";
 
@@ -146,8 +186,8 @@ exports.updateUser = async (req, res) => {
          WHERE user_id = ?`,
         [
           full_name,
-          email_id,
-          mobile_number,
+          normalizedEmail,
+          normalizedMobile,
           gender,
           account_type || "app",
           user_type,
@@ -163,8 +203,8 @@ exports.updateUser = async (req, res) => {
          WHERE user_id = ?`,
         [
           full_name,
-          email_id,
-          mobile_number,
+          normalizedEmail,
+          normalizedMobile,
           gender,
           account_type || "app",
           user_type,

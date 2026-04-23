@@ -1,8 +1,10 @@
 import api from "./api";
 
-export const getSocieties = async () => {
+export const getSocieties = async (search = "") => {
   try {
-    const res = await api.get("/societies");
+    const res = await api.get("/societies", {
+      params: search ? { search } : undefined,
+    });
     return res.data;
   } catch (err) {
     console.error("GET SOCIETIES ERROR:", err);

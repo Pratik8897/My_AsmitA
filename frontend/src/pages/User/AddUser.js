@@ -62,7 +62,7 @@ const AddUser = () => {
 
             <label className="field">
               <span>Email ID</span>
-              <input defaultValue="himanshusharma23@gmail.com" />
+              <input type="email" defaultValue="himanshusharma23@gmail.com" />
             </label>
 
             <label className="field">
@@ -76,7 +76,7 @@ const AddUser = () => {
 
             <label className="field">
               <span>Mobile No</span>
-              <input defaultValue="+966 8471253689" />
+              <input type="tel" inputMode="numeric" defaultValue="8471253689" />
             </label>
 
             <label className="field">
