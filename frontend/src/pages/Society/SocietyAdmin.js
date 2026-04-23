@@ -12,12 +12,14 @@ import Modal from "../../components/ui/Modal";
 import SocietyAdminForm from "../../components/societies/SocietyAdminForm";
 
 import {
-  getSocieties,
-  deleteSociety,
-} from "../../services/societyService";
+  getSocietyAdmins,
+  deleteSocietyAdmin,
+} from "../../services/SocietyAdminServices";
+import { getSocieties } from "../../services/societyService";
 
 const SocietyAdmin = () => {
   const [societies, setSocieties] = useState([]);
+  const [availableSocieties, setAvailableSocieties] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [openModal, setOpenModal] = useState(false);
@@ -36,7 +38,7 @@ const SocietyAdmin = () => {
   // 🔹 FETCH DATA
   const fetchSocieties = async () => {
     try {
-      const data = await getSocieties();
+      const data = await getSocietyAdmins();
       setSocieties(data);
     } catch (err) {
       console.error("Error fetching societies:", err);
@@ -45,8 +47,18 @@ const SocietyAdmin = () => {
     }
   };
 
+  const fetchAvailableSocieties = async () => {
+    try {
+      const data = await getSocieties();
+      setAvailableSocieties(data);
+    } catch (err) {
+      console.error("Error fetching available societies:", err);
+    }
+  };
+
   useEffect(() => {
     fetchSocieties();
+    fetchAvailableSocieties();
   }, []);
 
   // 🔹 FILTER LOGIC
@@ -81,10 +93,10 @@ const SocietyAdmin = () => {
   };
 
   const handleDelete = async (row) => {
-    if (!window.confirm("Deactivate this society?")) return;
+    if (!window.confirm("Deactivate this society admin?")) return;
 
     try {
-      await deleteSociety(row.society_id);
+      await deleteSocietyAdmin(row.user_id);
       fetchSocieties(); // refresh
     } catch (err) {
       console.error(err);
@@ -120,7 +132,7 @@ const SocietyAdmin = () => {
           onEdit={handleEdit}
           onDelete={handleDelete}
           onView={handleView}
-          deleteLabel="Deactivate Society"
+          deleteLabel="Deactivate Society Admin"
         />
       ),
     },
@@ -138,7 +150,7 @@ const SocietyAdmin = () => {
                 key: "search",
                 label: "Search",
                 type: "text",
-                placeholder: "Search society..."
+                placeholder: "Search society admin..."
               },
             ]}
             filters={filters}
@@ -155,7 +167,7 @@ const SocietyAdmin = () => {
         }
       >
         {loading ? (
-          <p className="p-4 text-gray-500">Loading societies...</p>
+          <p className="p-4 text-gray-500">Loading society admins...</p>
         ) : (
           <DataTable columns={columns} data={filteredData} />
         )}
@@ -167,14 +179,15 @@ const SocietyAdmin = () => {
         onClose={() => setOpenModal(false)}
         title={
           viewMode
-            ? "View Society"
+            ? "View Society Admin"
             : selected
-            ? "Edit Society"
-            : "Add Society"
+            ? "Edit Society Admin"
+            : "Add Society Admin"
         }
       >
         <SocietyAdminForm
           society={selected}
+          societies={availableSocieties}
           readOnly={viewMode}
           onSuccess={() => {
             setOpenModal(false);

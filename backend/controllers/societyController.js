@@ -18,11 +18,21 @@ const hasColumn = async (tableName, columnName) => {
 exports.getSocieties = async (req, res) => {
   try {
     const supportsSoftDelete = await hasColumn("societies", "is_active");
-    const [rows] = await db.query(
-      supportsSoftDelete
-        ? "SELECT * FROM societies WHERE is_active = 1 ORDER BY society_id DESC"
-        : "SELECT * FROM societies ORDER BY society_id DESC"
-    );
+    const search = String(req.query.search || "").trim();
+    const queryParams = [];
+
+    let sql = supportsSoftDelete
+      ? "SELECT * FROM societies WHERE is_active = 1"
+      : "SELECT * FROM societies WHERE 1 = 1";
+
+    if (search) {
+      sql += " AND (LOWER(society_name) LIKE LOWER(?) OR LOWER(address) LIKE LOWER(?))";
+      queryParams.push(`%${search}%`, `%${search}%`);
+    }
+
+    sql += " ORDER BY society_id DESC";
+
+    const [rows] = await db.query(sql, queryParams);
 
     res.json(rows);
   } catch (err) {

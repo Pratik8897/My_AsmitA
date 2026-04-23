@@ -1,11 +1,11 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-// import { useState } from "react";
 import AdminLayout from "../../layouts/AdminLayout";
 import "./AddUser.css";
 
 const AddAdmin = () => {
   const navigate = useNavigate();
-//   const [showFilters, setShowFilters] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
  
 
@@ -49,12 +49,12 @@ const AddAdmin = () => {
 
             <label className="field">
               <span>Email ID</span>
-              <input defaultValue="example@gmail.com" />
+              <input type="email" defaultValue="example@gmail.com" />
             </label>
 
              <label className="field">
               <span>Mobile No</span>
-              <input defaultValue="+91 9876543210" />
+              <input type="tel" inputMode="numeric" defaultValue="9876543210" />
             </label>
 
             <label className="field">
@@ -64,7 +64,21 @@ const AddAdmin = () => {
 
             <label className="field">
               <span>Password</span>
-              <input defaultValue="********" />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  defaultValue="********"
+                  className="w-full pr-12"
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-2 text-xs font-medium text-gray-500"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
             </label>
 
 

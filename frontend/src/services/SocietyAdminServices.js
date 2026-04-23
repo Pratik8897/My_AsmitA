@@ -1,41 +1,41 @@
 import api from "./api";
 
-export const getSocieties = async () => {
+export const getSocietyAdmins = async () => {
   try {
-    const res = await api.get("/societies");
+    const res = await api.get("/society-admins");
     return res.data;
   } catch (err) {
-    console.error("GET SOCIETIES ERROR:", err);
+    console.error("GET SOCIETY ADMINS ERROR:", err);
     throw err;
   }
 };
 
-export const createSociety = async (data) => {
+export const createSocietyAdmin = async (data) => {
   try {
-    const res = await api.post("/societies", data);
+    const res = await api.post("/society-admins", data);
     return res.data;
   } catch (err) {
-    console.error("CREATE SOCIETY ERROR:", err);
+    console.error("CREATE SOCIETY ADMIN ERROR:", err);
     throw err;
   }
 };
 
-export const updateSociety = async (id, data) => {
+export const updateSocietyAdmin = async (id, data) => {
   try {
-    const res = await api.put(`/societies/${id}`, data);
+    const res = await api.put(`/society-admins/${id}`, data);
     return res.data;
   } catch (err) {
-    console.error("UPDATE SOCIETY ERROR:", err);
+    console.error("UPDATE SOCIETY ADMIN ERROR:", err);
     throw err;
   }
 };
 
-export const deleteSociety = async (id) => {
+export const deleteSocietyAdmin = async (id) => {
   try {
-    const res = await api.delete(`/societies/${id}`);
+    const res = await api.delete(`/society-admins/${id}`);
     return res.data;
   } catch (err) {
-    console.error("DELETE SOCIETY ERROR:", err);
+    console.error("DELETE SOCIETY ADMIN ERROR:", err);
     throw err;
   }
 };
