@@ -1,39 +1,26 @@
 const db = require("../config/db");
 
-const hasColumn = async (tableName, columnName) => {
-  const [rows] = await db.query(
-    `SELECT 1
-     FROM INFORMATION_SCHEMA.COLUMNS
-     WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME = ?
-       AND COLUMN_NAME = ?
-     LIMIT 1`,
-    [tableName, columnName]
-  );
+/* ---------------- HELPERS ---------------- */
 
-  return rows.length > 0;
-};
+const isEmpty = (val) => !val || val.toString().trim() === "";
 
-// ✅ GET ACTIVE SOCIETIES
-exports.getSocieties = async (req, res) => {
+/* ---------------- GET SOCIETIES ---------------- */
+
+const getSocieties = async (req, res) => {
   try {
-    const supportsSoftDelete = await hasColumn("societies", "is_active");
     const search = String(req.query.search || "").trim();
-    const queryParams = [];
 
-    let sql = supportsSoftDelete
-      ? "SELECT * FROM societies WHERE is_active = 1"
-      : "SELECT * FROM societies WHERE 1 = 1";
+    let sql = "SELECT * FROM societies WHERE 1=1";
+    const params = [];
 
     if (search) {
-      sql += " AND (LOWER(society_name) LIKE LOWER(?) OR LOWER(address) LIKE LOWER(?))";
-      queryParams.push(`%${search}%`, `%${search}%`);
+      sql += ` AND (LOWER(society_name) LIKE LOWER(?) OR LOWER(address) LIKE LOWER(?))`;
+      params.push(`%${search}%`, `%${search}%`);
     }
 
     sql += " ORDER BY society_id DESC";
 
-    const [rows] = await db.query(sql, queryParams);
-
+    const [rows] = await db.query(sql, params);
     res.json(rows);
   } catch (err) {
     console.error("GET SOCIETIES ERROR:", err);
@@ -41,70 +28,233 @@ exports.getSocieties = async (req, res) => {
   }
 };
 
-// ✅ CREATE
-exports.createSociety = async (req, res) => {
+/* ---------------- CREATE SOCIETY ---------------- */
+
+const createSociety = async (req, res) => {
   try {
-    const { society_name, address, google_pin_location } = req.body;
+    const { society_name, city, contact_number } = req.body;
+
+    if (isEmpty(society_name))
+      return res.status(400).json({ error: "Society name required" });
+
+    if (isEmpty(city))
+      return res.status(400).json({ error: "City required" });
+
+    if (isEmpty(contact_number))
+      return res.status(400).json({ error: "Contact number required" });
 
     const [result] = await db.query(
-      `INSERT INTO societies (society_name, address, google_pin_location)
+      `INSERT INTO societies (society_name, city, contact_number)
        VALUES (?, ?, ?)`,
-      [society_name, address, google_pin_location]
+      [society_name, city, contact_number]
     );
 
     res.json({
-      message: "Society created successfully",
-      id: result.insertId,
+      message: "Society created",
+      society_id: result.insertId,
     });
   } catch (err) {
+    console.error("CREATE SOCIETY ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// ✅ UPDATE
-exports.updateSociety = async (req, res) => {
+/* ---------------- UPDATE SOCIETY ---------------- */
+
+const updateSociety = async (req, res) => {
   try {
     const { id } = req.params;
-    const { society_name, address, google_pin_location } = req.body;
+    const { society_name, city, contact_number } = req.body;
 
     await db.query(
-      `UPDATE societies 
-       SET society_name = ?, address = ?, google_pin_location = ?
-       WHERE society_id = ?`,
-      [society_name, address, google_pin_location, id]
+      `UPDATE societies SET 
+        society_name = ?, 
+        city = ?, 
+        contact_number = ?
+      WHERE society_id = ?`,
+      [society_name, city, contact_number, id]
     );
 
-    res.json({ message: "Society updated successfully" });
+    res.json({ message: "Updated successfully" });
   } catch (err) {
+    console.error("UPDATE ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// ✅ SOFT DELETE (IMPORTANT)
-exports.deleteSociety = async (req, res) => {
+/* ---------------- DELETE SOCIETY ---------------- */
+
+const deleteSociety = async (req, res) => {
   try {
     const { id } = req.params;
-    const supportsSoftDelete = await hasColumn("societies", "is_active");
-
-    if (supportsSoftDelete) {
-      await db.query(
-        `UPDATE societies 
-         SET is_active = 0 
-         WHERE society_id = ?`,
-        [id]
-      );
-
-      return res.json({ message: "Society deactivated successfully" });
-    }
 
     await db.query(
-      "DELETE FROM societies WHERE society_id = ?",
+      `DELETE FROM societies WHERE society_id = ?`,
       [id]
     );
 
     res.json({ message: "Society deleted successfully" });
   } catch (err) {
-    console.error("DELETE SOCIETY ERROR:", err);
+    console.error("DELETE ERROR:", err);
     res.status(500).json({ error: err.message });
   }
+};
+
+/* ---------------- CREATE TOWERS ---------------- */
+
+const createTowers = async (req, res) => {
+  const { society_id, towers } = req.body;
+
+  if (!society_id || !Array.isArray(towers))
+    return res.status(400).json({ error: "Invalid data" });
+
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 🔥 replace old towers (edit-safe)
+    await connection.query(
+      "DELETE FROM towers WHERE society_id = ?",
+      [society_id]
+    );
+
+    const values = towers.map((t) => [society_id, t.trim()]);
+
+    await connection.query(
+      "INSERT INTO towers (society_id, tower_name) VALUES ?",
+      [values]
+    );
+
+    const [rows] = await connection.query(
+      "SELECT tower_id, tower_name FROM towers WHERE society_id = ?",
+      [society_id]
+    );
+
+    await connection.commit();
+    res.json(rows);
+
+  } catch (err) {
+    await connection.rollback();
+    console.error("CREATE TOWERS ERROR:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
+  }
+};
+
+/* ---------------- GET TOWERS ---------------- */
+
+const getTowersBySociety = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [rows] = await db.query(
+      "SELECT tower_id, tower_name FROM towers WHERE society_id = ?",
+      [id]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error("GET TOWERS ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/* ---------------- GENERATE UNITS ---------------- */
+
+const generateUnits = async (req, res) => {
+  const { configs } = req.body;
+
+  if (!Array.isArray(configs))
+    return res.status(400).json({ error: "Invalid configs" });
+
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    for (const c of configs) {
+      const { tower_id, total_floors, units_per_floor } = c;
+
+      for (let floor = 1; floor <= total_floors; floor++) {
+        const [floorRes] = await connection.query(
+          "INSERT INTO floors (tower_id, floor_number) VALUES (?, ?)",
+          [tower_id, floor]
+        );
+
+        const floor_id = floorRes.insertId;
+
+        const flats = [];
+
+        for (let unit = 1; unit <= units_per_floor; unit++) {
+          const flatNumber = `${floor}${unit
+            .toString()
+            .padStart(2, "0")}`;
+
+          flats.push([floor_id, flatNumber]);
+        }
+
+        await connection.query(
+          "INSERT INTO flats (floor_id, flat_number) VALUES ?",
+          [flats]
+        );
+      }
+    }
+
+    await connection.commit();
+    res.json({ message: "Units generated successfully" });
+
+  } catch (err) {
+    await connection.rollback();
+    console.error("UNITS ERROR:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
+  }
+};
+
+
+const getTowerConfigs = async (req, res) => {
+ try {
+    const { id } = req.params; // society_id
+
+    const [rows] = await db.query(`
+      SELECT 
+        t.tower_id,
+        t.tower_name,
+
+        COUNT(DISTINCT f.floor_id) AS total_floors,
+
+        CASE 
+          WHEN COUNT(DISTINCT f.floor_id) = 0 THEN 0
+          ELSE FLOOR(COUNT(fl.flat_id) / COUNT(DISTINCT f.floor_id))
+        END AS units_per_floor
+
+      FROM towers t
+      LEFT JOIN floors f ON f.tower_id = t.tower_id
+      LEFT JOIN flats fl ON fl.floor_id = f.floor_id
+      WHERE t.society_id = ?
+      GROUP BY t.tower_id
+    `, [id]);
+
+    res.json(rows);
+  } catch (err) {
+    console.error("CONFIG ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+/* ---------------- EXPORT ---------------- */
+
+module.exports = {
+  getSocieties,
+  createSociety,
+  updateSociety,
+  deleteSociety,
+  createTowers,
+  getTowersBySociety,
+  generateUnits,
+  getTowerConfigs,
 };

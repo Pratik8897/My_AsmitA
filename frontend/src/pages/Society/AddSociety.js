@@ -147,6 +147,7 @@ const AddSociety = () => {
             <button className="btn primary" type="button">
               Add
             </button>
+             
           </div>
         </div>
       </div>
