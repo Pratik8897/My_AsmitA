@@ -18,6 +18,25 @@ const users = [
 const ServiceUsed = () => {
   // const navigate = useNavigate();
   const [showFilters, setShowFilters] = useState(false);
+  const [search, setSearch] = useState("");
+  const [selectedSociety, setSelectedSociety] = useState("");
+  const [selectedService, setSelectedService] = useState("");
+
+  const filteredUsers = users.filter((user) => {
+    const searchText = search.trim().toLowerCase();
+    const matchesSearch =
+      !searchText ||
+      [user.societyname, user.servicename, user.usedby, user.provider, user.phone, user.datetime]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(searchText));
+
+    const matchesSociety =
+      !selectedSociety || user.societyname === selectedSociety;
+    const matchesService =
+      !selectedService || user.servicename === selectedService;
+
+    return matchesSearch && matchesSociety && matchesService;
+  });
 
 
   return (
@@ -59,19 +78,29 @@ const ServiceUsed = () => {
 
 
             <div className={`user-filters${showFilters ? " open" : ""}`}>
-              <select defaultValue="Society">
-                <option>Society</option>
-                <option>Hiranandani Estate</option>
+              <select
+                value={selectedSociety}
+                onChange={(e) => setSelectedSociety(e.target.value)}
+              >
+                <option value="">Society</option>
+                <option value="Hiranandani Estate">Hiranandani Estate</option>
               </select>
-              <select defaultValue="Service">
-                <option>Service</option>
-                <option>Laundry Service</option>
-                <option>Clearing Service</option>
+              <select
+                value={selectedService}
+                onChange={(e) => setSelectedService(e.target.value)}
+              >
+                <option value="">Service</option>
+                <option value="Laundry Service">Laundry Service</option>
+                <option value="Clearing Service">Clearing Service</option>
               </select>
               
               <div className="user-search">
                 <span className="search-icon" aria-hidden="true" />
-                <input placeholder="Search by name" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by name"
+                />
               </div>
 
             </div>
@@ -99,7 +128,7 @@ const ServiceUsed = () => {
               </thead>
 
               <tbody>
-                {users.map((user, index) => (
+                {filteredUsers.map((user, index) => (
                   <tr key={`${user.email}-${index}`}>
 
                     {/* ✅ Sr No */}

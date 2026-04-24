@@ -12,7 +12,8 @@ import { clearAuthSession, getStoredAuthUser } from "../services/authService";
 const AdminLayout = ({ title, children }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [settings, setSettings] = useState(defaultAppSettings);
+  const [settings, setSettings] = useState(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [authUser, setAuthUser] = useState(getStoredAuthUser());
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
 
@@ -26,6 +27,7 @@ const AdminLayout = ({ title, children }) => {
       const nextSettings = await getAppSettings();
       setSettings(nextSettings);
       setAuthUser(getStoredAuthUser());
+      setSettingsLoading(false);
     };
 
     loadSettings();
@@ -36,9 +38,9 @@ const AdminLayout = ({ title, children }) => {
     };
   }, []);
 
-  const visibleMenuItems = menuItems.filter((item) =>
-    canAccessItem(item, settings)
-  );
+  const visibleMenuItems = settingsLoading
+    ? []
+    : menuItems.filter((item) => canAccessItem(item, settings || defaultAppSettings));
 
   const handleLogout = () => {
     clearAuthSession();
@@ -69,27 +71,35 @@ const AdminLayout = ({ title, children }) => {
         </div>
 
         <nav className="flex flex-col gap-1">
-          {visibleMenuItems.map((item) => {
-            const Icon = item.icon;
+          {settingsLoading ? (
+            !isCollapsed && (
+              <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                Loading permissions...
+              </div>
+            )
+          ) : (
+            visibleMenuItems.map((item) => {
+              const Icon = item.icon;
 
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all ${
-                    isActive
-                      ? "bg-blue-600 text-white shadow"
-                      : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                  }`
-                }
-              >
-                {Icon && <Icon className="h-5 w-5 min-w-[20px]" />}
-                {!isCollapsed && <span>{item.label}</span>}
-              </NavLink>
-            );
-          })}
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all ${
+                      isActive
+                        ? "bg-blue-600 text-white shadow"
+                        : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                    }`
+                  }
+                >
+                  {Icon && <Icon className="h-5 w-5 min-w-[20px]" />}
+                  {!isCollapsed && <span>{item.label}</span>}
+                </NavLink>
+              );
+            })
+          )}
         </nav>
       </aside>
 
@@ -118,7 +128,7 @@ const AdminLayout = ({ title, children }) => {
           <div className="flex items-center gap-3 md:gap-4">
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="rounded bg-gray-200 px-2 py-1 text-xs dark:bg-gray-700 md:px-3 md:text-sm"
+              className="inline-flex min-w-[72px] items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 md:text-sm"
             >
               {theme === "dark" ? "Light" : "Dark"}
             </button>

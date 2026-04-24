@@ -131,22 +131,22 @@ const SocietyManagement = () => {
       <DataTableLayout
         title="Society Management"
 
-        filters={
-          <FilterBar
-            filtersConfig={[
-              {
-                key: "search",
-                label: "Search",
-                type: "text",
-                placeholder: "Search society..."
-              },
-            ]}
-            filters={filters}
-            setFilters={setFilters}
-            onApply={handleApplyFilters}
-            onClear={handleClearFilters}
-          />
-        }
+        // filters={
+        //   <FilterBar
+        //     filtersConfig={[
+        //       {
+        //         key: "search",
+        //         label: "Search",
+        //         type: "text",
+        //         placeholder: "Search society..."
+        //       },
+        //     ]}
+        //     filters={filters}
+        //     setFilters={setFilters}
+        //     onApply={handleApplyFilters}
+        //     onClear={handleClearFilters}
+        //   />
+        // }
 
         actions={
           <Button variant="danger" onClick={handleAdd}>

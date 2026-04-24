@@ -46,5 +46,5 @@ export const canAccessItem = (item = {}, settings = defaultAppSettings) => {
     return true;
   }
 
-  return checks.some(Boolean);
+  return checks.every(Boolean);
 };

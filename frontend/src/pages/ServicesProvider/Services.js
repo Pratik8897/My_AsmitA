@@ -51,11 +51,14 @@ const Services = () => {
   // 🔹 FILTER LOGIC
   const filteredData = societies.filter((item) => {
     const search = appliedFilters.search.toLowerCase();
+    const serviceName =
+      item.service_name || item.service || item.Service || "";
+    const societyName = item.society_name || item.societyName || "";
 
     return (
       !search ||
-      item.Service?.toLowerCase().includes(search) ||
-      item.society_name?.toLowerCase().includes(search)
+      serviceName.toLowerCase().includes(search) ||
+      societyName.toLowerCase().includes(search)
     );
   });
 

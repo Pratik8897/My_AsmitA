@@ -10,6 +10,8 @@ import ActionButtons from "../../components/common/ActionButtons";
 import Modal from "../../components/ui/Modal";
 import UserForm from "../../components/users/UserForm";
 import FilterBar from "../../components/common/FilterBar";
+
+
 import {
   APP_SETTINGS_EVENT,
   defaultAppSettings,
@@ -17,7 +19,7 @@ import {
   getResidentRoles,
 } from "../../services/appSettingsService";
 import { deleteUser, getUsers } from "../../services/userService";
-
+const ALLOWED_DELETE_ROLES = ["Super Admin", "Admin"];
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +64,22 @@ const UserManagement = () => {
       options: roleOptions,
     },
   ];
+
+const getCurrentUserRole = () => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const user = JSON.parse(localStorage.getItem("myasmita:auth-user"));
+    return user?.user_type || null;
+  } catch (e) {
+    return null;
+  }
+};
+
+const currentUserRole = getCurrentUserRole();
+const canDelete = ALLOWED_DELETE_ROLES.includes(currentUserRole);
+
+  console.log("Current User Role:", currentUserRole);  
 
   const fetchUsers = async () => {
     try {
@@ -155,6 +173,7 @@ const UserManagement = () => {
           onEdit={handleEdit}
           onDelete={handleDelete}
           onView={handleView}
+          showDelete={canDelete}
         />
       ),
     },

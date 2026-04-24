@@ -87,7 +87,7 @@ const AppRoutes = () => {
           path="/society-admin"
           element={withProtection(<SocietyAdmin />, {
             roles: ["admin", "super-admin", "society-admin"],
-            permission: "canManageSocieties",
+            permission: "canManageUsers",
           })}
         />
         <Route

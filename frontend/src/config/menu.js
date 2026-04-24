@@ -38,7 +38,7 @@ export const menuItems = [
     path: "/society-admin",
     icon: UserCircleIcon,
     roles: ["admin", "super-admin", "society-admin"],
-    permission: "canManageSocieties",
+    permission: "canManageUsers",
   },
   {
     label: "Services",

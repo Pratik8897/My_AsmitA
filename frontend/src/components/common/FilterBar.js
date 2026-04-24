@@ -36,7 +36,7 @@ const FilterBar = ({
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4">
@@ -44,7 +44,7 @@ const FilterBar = ({
         {filtersConfig.map((filter, i) => (
           <div key={i} className="min-w-[200px]">
 
-            <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
               {filter.label}
             </label>
 
@@ -56,7 +56,7 @@ const FilterBar = ({
                   handleTextChange(filter.key, e.target.value)
                 }
                 placeholder={filter.placeholder || `Enter ${filter.label}`}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500"
               />
             ) : (
               <Select
@@ -86,17 +86,19 @@ const FilterBar = ({
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
+          type="button"
           onClick={onApply}
-          className="px-4 py-2 bg-blue-600 text-white rounded"
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
         >
           Apply Filters
         </button>
 
         <button
+          type="button"
           onClick={onClear}
-          className="px-4 py-2 border rounded"
+          className="rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
         >
           Clear
         </button>
