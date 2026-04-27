@@ -1,215 +1,234 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
 import AdminLayout from "../../layouts/AdminLayout";
-// import "./UserManagement.css";
+import DataTableLayout from "../../layouts/DataTableLayout";
+import DataTable from "../../components/common/DataTable";
+
+import Button from "../../components/ui/Button";
+import ActionButtons from "../../components/common/ActionButtons";
+import FilterBar from "../../components/common/FilterBar";
+import Modal from "../../components/ui/Modal";
+
+import {
+  getSocieties,
+  deleteSociety,
+} from "../../services/societyService";
+import AddFaq from "../FAQ/AddFaq";
 
 const Support = () => {
+  const [societies, setSocieties] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [showFilters, setShowFilters] = useState(false);
-  const [activeTab, setActiveTab] = useState("faq");
+  const [openModal, setOpenModal] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [viewMode, setViewMode] = useState(false);
 
-  // ✅ MODAL STATE
-  const [showModal, setShowModal] = useState(false);
+  // 🔥 FILTER STATE
+  const [filters, setFilters] = useState({
+    search: "",
+  });
 
-  // ✅ FORM STATE
-  const [faqInput, setFaqInput] = useState("");
-  const [faqDesc, setFaqDesc] = useState("");
+  const [appliedFilters, setAppliedFilters] = useState({
+    search: "",
+  });
 
-  // ✅ FAQ DATA STATE
-  const [faqList, setFaqList] = useState([
-    {
-      faq: "Lorem Ipsum is simply dummy text of the printing and typesetting industry.",
-      desc: "Sample description"
+  // 🔥 GLOBAL TAB STATE (IMPORTANT CHANGE)
+  const [activeTab, setActiveTab] = useState("faq"); // "faq" | "support"
+
+  // 🔹 FETCH DATA
+  const fetchSocieties = async () => {
+    try {
+      const data = await getSocieties();
+      setSocieties(data);
+    } catch (err) {
+      console.error("Error fetching societies:", err);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
-  const support = [
+  useEffect(() => {
+    fetchSocieties();
+  }, []);
+
+  // 🔹 FILTER LOGIC
+  const filteredData = societies.filter((item) => {
+    const search = appliedFilters.search.toLowerCase();
+
+    return (
+      !search ||
+      item.Service?.toLowerCase().includes(search) ||
+      item.society_name?.toLowerCase().includes(search)
+    );
+  });
+
+  // 🔹 HANDLERS
+  const handleAdd = () => {
+    setSelected(null);
+    setViewMode(false);
+    setOpenModal(true);
+  };
+
+  const handleEdit = (row) => {
+    setSelected(row);
+    setViewMode(false);
+    setOpenModal(true);
+  };
+
+  const handleView = (row) => {
+    setSelected(row);
+    setViewMode(true);
+    setOpenModal(true);
+  };
+
+  const handleDelete = async (row) => {
+    if (!window.confirm("Deactivate this society?")) return;
+
+    try {
+      await deleteSociety(row.society_id);
+      fetchSocieties();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 🔹 FILTER APPLY
+  const handleApplyFilters = () => {
+    setAppliedFilters(filters);
+  };
+
+  const handleClearFilters = () => {
+    const empty = { search: "" };
+    setFilters(empty);
+    setAppliedFilters(empty);
+  };
+
+  // 🔥 DYNAMIC COLUMNS BASED ON TAB
+  const columns = [
     {
-      askedby: "Himanshu Sharma",
-      society: "AshmitA",
-      date: "2023-10-10",
-      time: "10:00 AM",
+      header: "Sr No",
+      render: (_, index) => index + 1,
+    },
+
+    {
+      header: activeTab === "faq" ? "FAQ" : "Support",
+      render: (row) => (
+        <div className="text-sm text-gray-700">
+          {activeTab === "faq"
+            ? row.faq_content || "No FAQ available"
+            : row.support_content || "No Support available"}
+        </div>
+      ),
+    },
+
+    {
+      header: "Action",
+      render: (row) => (
+        <ActionButtons
+          row={row}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onView={handleView}
+          deleteLabel="Deactivate Society"
+        />
+      ),
     },
   ];
 
-  // =========================
-  // ADD FAQ
-  // =========================
-  const handleAddFAQ = () => {
-    if (!faqInput.trim()) return;
-
-    setFaqList((prev) => [
-      ...prev,
-      {
-        faq: faqInput,
-        desc: faqDesc
-      }
-    ]);
-
-    // reset
-    setFaqInput("");
-    setFaqDesc("");
-    setShowModal(false);
-  };
-
   return (
-    <AdminLayout title="Support">
-      <div className="user-page">
+    <AdminLayout>
+      <DataTableLayout
+        title="Society Services"
+        
+        // 🔥 TOP TAB SWITCH UI
+        filters={
+          <div className="flex gap-2 mb-3">
+            
 
-        {/* TOP BUTTON */}
-        <div className="user-actions">
+            {/* existing filter */}
+            <div className="ml-auto">
+              <FilterBar
+                filtersConfig={[
+                  {
+                    key: "search",
+                    label: "Search",
+                    type: "text",
+                    placeholder: "Search society...",
+                  },
+                ]}
+                filters={filters}
+                setFilters={setFilters}
+                onApply={handleApplyFilters}
+                onClear={handleClearFilters}
+              />
+            </div>
+          </div>
+        }
+        actions={
+          <Button variant="danger" onClick={handleAdd}>
+            + ADD NEW FAQ
+          </Button>
+        }
+      >
+
+
           <button
-            className="btn primary"
-            onClick={() => setShowModal(true)}
-          >
-            + Add New FAQ
-          </button>
-        </div>
+              onClick={() => setActiveTab("faq")}
+              className={`px-4 py-2 rounded ${
+                activeTab === "faq"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200"
+              }`}
+            >
+              FAQ
+            </button>
 
-        <div className="user-card">
-
-          {/* HEADER */}
-          <div className="user-card-header">
-            <div className="user-card-top">
-              <h2>Support</h2>
-              <button
-                className="filter-toggle"
-                onClick={() => setShowFilters((prev) => !prev)}
-              >
-                {showFilters ? "Hide Filters" : "Filters"}
-              </button>
-            </div>
-
-            <div className={`user-filters${showFilters ? " open" : ""}`}>
-              <button
-                className={`btn ${activeTab === "faq" ? "active" : ""}`}
-                onClick={() => setActiveTab("faq")}
-              >
-                Frequently Asked Questions
-              </button>
-
-              <button
-                className={`btn ${activeTab === "support" ? "active" : ""}`}
-                onClick={() => setActiveTab("support")}
-              >
-                Support
-              </button>
-            </div>
-          </div>
-
-          {/* ================= FAQ TABLE ================= */}
-          {activeTab === "faq" && (
-            <div className="user-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Sr No</th>
-                    <th>FAQ</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {faqList.map((item, index) => (
-                    <tr key={index}>
-                      <td>{index + 1}</td>
-                      <td>{item.faq}</td>
-                      <td>
-                        <button className="view-btn">View</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-
-              </table>
-            </div>
-          )}
-
-          {/* ================= SUPPORT TABLE ================= */}
-          {activeTab === "support" && (
-            <div className="user-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Sr No</th>
-                    <th>Asked By</th>
-                    <th>Society</th>
-                    <th>Date</th>
-                    <th>Time</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {support.map((user, index) => (
-                    <tr key={index}>
-                      <td>{index + 1}</td>
-                      <td>{user.askedby}</td>
-                      <td>{user.society}</td>
-                      <td>{user.date}</td>
-                      <td>{user.time}</td>
-                      <td>
-                        <button className="view-btn">View</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-
-              </table>
-            </div>
-          )}
-
-        </div>
-
-        {/* ================= MODAL ================= */}
-        {showModal && (
-          <div className="modal-overlay">
-
-            <div className="modal-box">
-
-              <h3>Add New FAQ</h3>
-
-              <div className="add-user-grid">
-
-                <label className="field">
-                  <span>Enter FAQ</span>
-                  <input
-                    value={faqInput}
-                    onChange={(e) => setFaqInput(e.target.value)}
-                  />
-                </label>
-
-                <label className="field">
-                  <span>Enter Content For Description</span>
-                  <textarea
-                    value={faqDesc}
-                    onChange={(e) => setFaqDesc(e.target.value)}
-                  />
-                </label>
-
-              </div>
-
-              <div className="add-user-actions">
-                <button
-                  className="btn ghost"
-                  onClick={() => setShowModal(false)}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  className="btn primary"
-                  onClick={handleAddFAQ}
-                >
-                  Add
-                </button>
-              </div>
-
-            </div>
-
-          </div>
+            <button
+              onClick={() => setActiveTab("support")}
+              className={`px-4 py-2 rounded ${
+                activeTab === "support"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200"
+              }`}
+            >
+              Support
+            </button>
+    
+        {loading ? (
+          <p className="p-4 text-gray-500">
+            Loading Services Providers...
+          </p>
+        ) : (
+          <DataTable columns={columns} data={filteredData} />
         )}
 
-      </div>
+        
+      </DataTableLayout>
+
+      {/* MODAL */}
+
+      <Modal
+        isOpen={openModal}
+        onClose={() => setOpenModal(false)}
+        title={
+          viewMode
+            ? "View Society"
+            : selected
+            ? "Edit Society"
+            : "Add Society"
+        }
+      >
+
+        <AddFaq
+          society={selected}
+          readOnly={viewMode}
+          onSuccess={() => {
+            setOpenModal(false);
+            fetchSocieties(); // refresh
+          }}
+        />
+
+      </Modal>
     </AdminLayout>
   );
 };

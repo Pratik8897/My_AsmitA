@@ -1,177 +1,142 @@
-import { useState } from "react";
-import AdminLayout from "../../layouts/AdminLayout";
-// import "./UserManagement.css";
-// import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 
-const users = [
-  {
-    societyname: "Hiranandani Estate",
-    servicename: "Laundry Service",
-    usedby: "Hiranandani Estate",
-    provider: "Himanshu Sharma",
-    phone: "+91 857412365",
-    datetime: "2023-10-10 10:00 AM",
-    
-  },
-];
+import AdminLayout from "../../layouts/AdminLayout";
+import DataTableLayout from "../../layouts/DataTableLayout";
+import DataTable from "../../components/common/DataTable";
+
+import ActionButtons from "../../components/common/ActionButtons";
+import FilterBar from "../../components/common/FilterBar";
+import Modal from "../../components/ui/Modal";
+
+import { getSocieties } from "../../services/societyService";
 
 const ServiceUsed = () => {
-  // const navigate = useNavigate();
-  const [showFilters, setShowFilters] = useState(false);
-  const [search, setSearch] = useState("");
-  const [selectedSociety, setSelectedSociety] = useState("");
-  const [selectedService, setSelectedService] = useState("");
+  /* ---------------- STATE ---------------- */
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredUsers = users.filter((user) => {
-    const searchText = search.trim().toLowerCase();
-    const matchesSearch =
-      !searchText ||
-      [user.societyname, user.servicename, user.usedby, user.provider, user.phone, user.datetime]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(searchText));
+  const [openModal, setOpenModal] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [viewMode, setViewMode] = useState(false);
 
-    const matchesSociety =
-      !selectedSociety || user.societyname === selectedSociety;
-    const matchesService =
-      !selectedService || user.servicename === selectedService;
+  const [filters, setFilters] = useState({ search: "" });
+  const [appliedFilters, setAppliedFilters] = useState({ search: "" });
 
-    return matchesSearch && matchesSociety && matchesService;
+  /* ---------------- FETCH ---------------- */
+  const fetchServices = async () => {
+    try {
+      const data = await getSocieties(); // ⚠ replace with getServices later
+      setServices(data || []);
+    } catch (err) {
+      console.error("Error fetching services:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  /* ---------------- FILTER ---------------- */
+  const filteredData = services.filter((item) => {
+    const search = appliedFilters.search.toLowerCase();
+
+    return (
+      !search ||
+      item.service_provider_name?.toLowerCase().includes(search) ||
+      item.society_name?.toLowerCase().includes(search) ||
+      item.service_name?.toLowerCase().includes(search)
+    );
   });
 
+  /* ---------------- HANDLERS ---------------- */
+  const handleView = (row) => {
+    setSelected(row);
+    setViewMode(true);
+    setOpenModal(true);
+  };
+
+  const handleApplyFilters = () => {
+    setAppliedFilters(filters);
+  };
+
+  const handleClearFilters = () => {
+    const empty = { search: "" };
+    setFilters(empty);
+    setAppliedFilters(empty);
+  };
+
+  /* ---------------- COLUMNS ---------------- */
+  const columns = [
+    {
+      header: "Sr No",
+      render: (_, index) => index + 1,
+    },
+    { header: "Service Provider Name", accessor: "service_provider_name" },
+    { header: "Society Name", accessor: "society_name" },
+    { header: "Service Name", accessor: "service_name" },
+    { header: "Used By", accessor: "used_by" },
+    { header: "Provider", accessor: "provider" },
+    { header: "Phone", accessor: "phone" },
+    { header: "Date & Time", accessor: "datetime" },
+    {
+      header: "Action",
+      render: (row) => (
+        <ActionButtons row={row} onView={handleView} />
+      ),
+    },
+  ];
 
   return (
-    <AdminLayout title="Services Providers">
-      <div className="user-page">
+    <AdminLayout>
+      <DataTableLayout
+        title="Society Services"
+        filters={
+          <FilterBar
+            filtersConfig={[
+              {
+                key: "search",
+                label: "Search",
+                type: "text",
+                placeholder: "Search services...",
+              },
+            ]}
+            filters={filters}
+            setFilters={setFilters}
+            onApply={handleApplyFilters}
+            onClear={handleClearFilters}
+          />
+        }
+      >
+        {loading ? (
+          <p className="p-4 text-gray-500">
+            Loading Service Providers...
+          </p>
+        ) : (
+          <DataTable columns={columns} data={filteredData} />
+        )}
+      </DataTableLayout>
 
-        {/* Top Buttons */}
-        {/* <div className="user-actions">
-          <button
-            className="btn primary"
-            type="button"
-            onClick={() => navigate("/add-service-provider")}
-          >
-            + Add New Service Provider
-          </button>
-
-          <button className="btn outline" type="button">
-            Export Data In Excel
-          </button>
-        </div> */}
-
-
-
-        <div className="user-card">
-
-
-          <div className="user-card-header">
-            <div className="user-card-top">
-              <h2>Services Providers</h2>
-              <button
-                className="filter-toggle"
-                type="button"
-                onClick={() => setShowFilters((prev) => !prev)}
-                aria-expanded={showFilters}
-              >
-                {showFilters ? "Hide Filters" : "Filters"}
-              </button>
-            </div>
-
-
-            <div className={`user-filters${showFilters ? " open" : ""}`}>
-              <select
-                value={selectedSociety}
-                onChange={(e) => setSelectedSociety(e.target.value)}
-              >
-                <option value="">Society</option>
-                <option value="Hiranandani Estate">Hiranandani Estate</option>
-              </select>
-              <select
-                value={selectedService}
-                onChange={(e) => setSelectedService(e.target.value)}
-              >
-                <option value="">Service</option>
-                <option value="Laundry Service">Laundry Service</option>
-                <option value="Clearing Service">Clearing Service</option>
-              </select>
-              
-              <div className="user-search">
-                <span className="search-icon" aria-hidden="true" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name"
-                />
-              </div>
-
-            </div>
-
-
-
-
+      {/* ---------------- MODAL ---------------- */}
+      <Modal
+        isOpen={openModal}
+        onClose={() => setOpenModal(false)}
+        title="View Service"
+      >
+        {selected && (
+          <div className="space-y-2 text-sm">
+            <p><b>Provider:</b> {selected.service_provider_name}</p>
+            <p><b>Society:</b> {selected.society_name}</p>
+            <p><b>Service:</b> {selected.service_name}</p>
+            <p><b>Used By:</b> {selected.used_by}</p>
+            <p><b>Phone:</b> {selected.phone}</p>
+            <p><b>Date:</b> {selected.datetime}</p>
           </div>
-
-
-          {/* Table */}
-          <div className="user-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Sr No</th>
-                  <th>Society Name</th>
-                  <th>Service Name</th>
-                  <th>Used By</th>
-                  <th>Provider</th>
-                  <th>Phone Number</th>
-                  <th>Date & Time</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredUsers.map((user, index) => (
-                  <tr key={`${user.email}-${index}`}>
-
-                    {/* ✅ Sr No */}
-                    <td data-label="Sr No">{index + 1}</td>
-
-                    <td data-label="Society Name">{user.societyname}</td>
-                    <td data-label="Service Name">{user.servicename}</td>
-                    <td data-label="Used By">{user.usedby}</td>
-                    <td data-label="Provider">{user.provider}</td>
-                    <td data-label="Phone Number">{user.phone}</td>
-                    <td data-label="Date & Time">{user.datetime}</td>
-
-                    <td data-label="Action">
-                      <div className="action-group">
-                        {/* <button
-                          className="icon-btn edit"
-                          type="button"
-                          aria-label="Edit"
-                        />
-                        <button
-                          className="icon-btn delete"
-                          type="button"
-                          aria-label="Delete"
-                        /> */}
-                        <button className="view-btn" type="button">
-                          View
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-
-            </table>
-          </div>
-        </div>
-
-      </div>
+        )}
+      </Modal>
     </AdminLayout>
   );
 };
-
-
-
 
 export default ServiceUsed;

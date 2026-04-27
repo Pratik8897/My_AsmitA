@@ -1,171 +1,217 @@
-import { useState } from "react";
-import AdminLayout from "../../layouts/AdminLayout";
 import { useNavigate } from "react-router-dom";
-// import "./UserManagement.css";
-import "./AddServicesProvider.css";
+import { useState, useRef } from "react";
+import AdminLayout from "../../layouts/AdminLayout";
+// import "./AddUser.css";
+// import "./AddServicesProvider.css";
+// import "./ServicesProvider.css";
 
-const users = [
-  {
-    societyadminname: "Hiranandani Estate",
-    societyname: "Hiranandani Estate",
-    email: "himanshusharma23@gmail.com",
-    phone: "+91 857412365",
-  },
-];
 
-const ServicesProviders = () => {
+const AddServicesProvider = () => {
   const navigate = useNavigate();
-  const [showFilters, setShowFilters] = useState(false);
-  const [search, setSearch] = useState("");
-  const [selectedSociety, setSelectedSociety] = useState("");
-  const [selectedService, setSelectedService] = useState("");
+  const containerRef = useRef(null);
 
-  const filteredUsers = users.filter((user) => {
-    const searchText = search.trim().toLowerCase();
-    const matchesSearch =
-      !searchText ||
-      [user.societyadminname, user.societyname, user.email, user.phone]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(searchText));
+  // =========================
+  // DAYS
+  // =========================
+  const daysList = [
+    "Monday","Tuesday","Wednesday",
+    "Thursday","Friday","Saturday","Sunday"
+  ];
 
-    const matchesSociety =
-      !selectedSociety || user.societyname === selectedSociety;
-    const matchesService =
-      !selectedService || user.societyadminname === selectedService;
+  // =========================
+  // STATE (OPTIMIZED INIT)
+  // =========================
+  const [timings, setTimings] = useState(() =>
+    daysList.map((day) => ({
+      day,
+      enabled: true, // true = LOCKED
+      start: "09:00",
+      end: "22:00"
+    }))
+  );
 
-    return matchesSearch && matchesSociety && matchesService;
-  });
+  // =========================
+  // UPDATE TIME (SAFE IMMUTABLE)
+  // =========================
+  const updateTime = (index, field, value) => {
+    setTimings((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? { ...item, [field]: value }
+          : item
+      )
+    );
+  };
 
+  // =========================
+  // TOGGLE DAY
+  // =========================
+  const toggleDay = (index) => {
+    setTimings((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? { ...item, enabled: !item.enabled }
+          : item
+      )
+    );
+  };
+
+  // =========================
+  // SUBMIT
+  // =========================
+  const handleSubmit = () => {
+    console.log("FINAL DATA:", timings);
+
+    // 👉 API CALL READY STRUCTURE
+    // axios.post("/api/provider", { timings })
+  };
 
   return (
-    <AdminLayout title="Services Providers">
-      <div className="user-page">
+    <AdminLayout title="Add User">
 
-        {/* Top Buttons */}
-        <div className="user-actions">
-          <button
-            className="btn primary"
-            type="button"
-            onClick={() => navigate("/add-service-provider")}
-          >
-            + Add New Service Provider
-          </button>
+      <div className="add-user-page" ref={containerRef}>
 
-          <button className="btn outline" type="button">
-            Export Data In Excel
-          </button>
+        {/* HEADER */}
+        <div className="add-user-header">
+          <div className="add-user-avatar">
+            <img
+              src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d"
+              alt="User"
+            />
+            <button className="avatar-upload" type="button">
+              +
+            </button>
+          </div>
         </div>
 
+        <div className="add-user-card">
 
+          {/* FORM ROW */}
+          <div className="add-user-row services-provider-row">
+            <label className="field">
+              <span>Service Provider Name</span>
+              <input defaultValue="Himanshu Sharma" />
+            </label>
 
-        <div className="user-card">
-
-
-          <div className="user-card-header">
-            <div className="user-card-top">
-              <h2>Services Providers</h2>
-              <button
-                className="filter-toggle"
-                type="button"
-                onClick={() => setShowFilters((prev) => !prev)}
-                aria-expanded={showFilters}
-              >
-                {showFilters ? "Hide Filters" : "Filters"}
-              </button>
-            </div>
-
-
-            <div className={`user-filters${showFilters ? " open" : ""}`}>
-              <select
-                value={selectedSociety}
-                onChange={(e) => setSelectedSociety(e.target.value)}
-              >
-                <option value="">Society</option>
-                <option value="Hiranandani Estate">Hiranandani Estate</option>
+            <label className="field">
+              <span>Select Society</span>
+              <select defaultValue="Hiranandani Estate">
+                <option>Hiranandani Estate</option>
               </select>
-              <select
-                value={selectedService}
-                onChange={(e) => setSelectedService(e.target.value)}
-              >
-                <option value="">Service</option>
-                <option value="Laundry Service">Laundry Service</option>
-                <option value="Clearing Service">Clearing Service</option>
+            </label>
+
+            <label className="field">
+              <span>Select Tower</span>
+              <select defaultValue="Tower A">
+                <option>Tower A</option>
+                <option>Tower B</option>
+                <option>Tower C</option>
               </select>
-              
-              <div className="user-search">
-                <span className="search-icon" aria-hidden="true" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name"
-                />
+            </label>
+
+            <label className="field">
+              <span>Select Service</span>
+              <select defaultValue="Laundry Service">
+                <option>Laundry Service</option>
+              </select>
+            </label>
+
+            <button className="add-flat" type="button">+</button>
+          </div>
+
+          {/* GRID */}
+          <div className="add-user-grid">
+            <label className="field">
+              <span>Mobile No</span>
+              <input defaultValue="+91 9876543210" />
+            </label>
+
+            <label className="field">
+              <span>Email</span>
+              <input defaultValue="example@gmail.com" />
+            </label>
+
+            <label className="field">
+              <span>Description</span>
+              <input defaultValue="Text description" />
+            </label>
+
+            <label className="field">
+              <span>Specialization</span>
+              <input defaultValue="Laundry expert" />
+            </label>
+          </div>
+
+          {/* =========================
+              TIMINGS SECTION (OPTIMIZED)
+          ========================= */}
+          <div className="timings-section ">
+            <h4>Timings</h4>
+
+            {timings.map((item, index) => (
+              <div key={item.day} className="timing-row">
+
+                {/* DAY */}
+                <div className="day">{item.day}</div>
+
+                {/* TIME */}
+                <div className="time-box">
+
+                  <input
+                    type="time"
+                    value={item.start}
+                    disabled={item.enabled} // LOCK WHEN TRUE
+                    onChange={(e) =>
+                      updateTime(index, "start", e.target.value)
+                    }
+                  />
+
+                  <input
+                    type="time"
+                    value={item.end}
+                    disabled={item.enabled}
+                    onChange={(e) =>
+                      updateTime(index, "end", e.target.value)
+                    }
+                  />
+
+                </div>
+
+                {/* TOGGLE */}
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={item.enabled}
+                    onChange={() => toggleDay(index)}
+                  />
+                  <span className="slider"></span>
+                </label>
+
               </div>
-
-            </div>
-
-
-
-
+            ))}
           </div>
 
+          {/* ACTIONS */}
+          <div className="add-user-actions">
+            <button
+              className="btn ghost"
+              onClick={() => navigate(-1)}
+            >
+              Cancel
+            </button>
 
-          {/* Table */}
-          <div className="user-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Sr No</th>
-                  <th>Service Provider Name</th>
-                  <th>Service Name</th>
-                  <th>Society Name</th>
-                  <th>Phone Number</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredUsers.map((user, index) => (
-                  <tr key={`${user.email}-${index}`}>
-
-                    {/* ✅ Sr No */}
-                    <td data-label="Sr No">{index + 1}</td>
-
-                    <td data-label="Service Provider Name">{user.societyadminname}</td>
-                    <td data-label="Service Name">{user.societyname}</td>
-                    <td data-label="Society Name">{user.email}</td>
-                    <td data-label="Phone Number">{user.phone}</td>
-
-                    <td data-label="Action">
-                      <div className="action-group">
-                        <button
-                          className="icon-btn edit"
-                          type="button"
-                          aria-label="Edit"
-                        />
-                        <button
-                          className="icon-btn delete"
-                          type="button"
-                          aria-label="Delete"
-                        />
-                        <button className="view-btn" type="button">
-                          View
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-
-            </table>
+            <button
+              className="btn primary"
+              onClick={handleSubmit}
+            >
+              Add
+            </button>
           </div>
+
         </div>
-
       </div>
     </AdminLayout>
   );
 };
 
-
-
-
-export default ServicesProviders;
+export default AddServicesProvider;

@@ -1,334 +1,296 @@
-import { useNavigate } from "react-router-dom";
-import { useState, useRef } from "react";
-import AdminLayout from "../../layouts/AdminLayout";
-// import "./AddUser.css";
-import "./AddAmenities.css";
+import { useEffect, useRef, useState } from "react";
+
+// import "../../ServicesProvider/AddServicesProvider.css";
+import "../../pages/ServicesProvider/AddServicesProvider.css";
+import "../../pages/Amenities/AddAmenities.css"
+import {
+  createSociety,
+  updateSociety,
+} from "../../services/societyService";
 
 
-const AddAmenity = () => {
-    const navigate = useNavigate();
-    const fileInputRef = useRef(null);
-    const containerRef = useRef(null);
 
-    // =========================
-    // DAYS
-    // =========================
-    const daysList = [
-        "Monday", "Tuesday", "Wednesday",
-        "Thursday", "Friday", "Saturday", "Sunday"
-    ];
 
-    // =========================
-    // STATE
-    // =========================
-    const [images, setImages] = useState([]);
+const AddAmenity = ({ society, readOnly = false, onSuccess }) => {
 
-    const [timings, setTimings] = useState(() =>
-        daysList.map((day) => ({
-            day,
-            enabled: true,
-            start: "09:00",
-            end: "22:00"
-        }))
+  /* ================= FORM ================= */
+  const [form, setForm] = useState({
+    description: "",
+    specilities: "",
+    important_instruction: "", // ✅ added
+  });
+
+  /* ================= IMAGES ================= */
+  const [images, setImages] = useState([]);
+  const fileInputRef = useRef();
+
+  /* ================= TIMINGS ================= */
+  const daysList = [
+    "Monday","Tuesday","Wednesday",
+    "Thursday","Friday","Saturday","Sunday"
+  ];
+
+  const [timings, setTimings] = useState(
+    daysList.map((day) => ({
+      day,
+      enabled: true,
+      start: "09:00",
+      end: "22:00",
+    }))
+  );
+
+  /* ================= SLOTS ================= */
+  const [slots, setSlots] = useState([
+    {
+      slot: "Slot 1",
+      enabled: true,
+      start: "09:00",
+      end: "10:00",
+    },
+  ]);
+
+  /* ================= PREFILL ================= */
+  useEffect(() => {
+    if (society) {
+      setForm({
+        description: society.description || "",
+        specilities: society.specilities || "",
+        important_instruction: society.important_instruction || "",
+      });
+
+      setImages(
+        society.images?.map((img) => ({
+          file: null,
+          preview: img,
+        })) || []
+      );
+
+      if (society.timings) setTimings(society.timings);
+      if (society.slots) setSlots(society.slots);
+
+    } else {
+      resetForm();
+    }
+  }, [society]);
+
+  const resetForm = () => {
+    setForm({
+      description: "",
+      specilities: "",
+      important_instruction: "",
+    });
+    setImages([]);
+  };
+
+  /* ================= INPUT ================= */
+  const handleChange = (e) => {
+    if (readOnly) return;
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  /* ================= IMAGE ================= */
+  const handleFiles = (files) => {
+    const newImages = Array.from(files).map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setImages((prev) => [...prev, ...newImages]);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    handleFiles(e.dataTransfer.files);
+  };
+
+  const handleRemoveImage = (index) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  /* ================= TIMINGS ================= */
+  const updateTime = (index, field, value) => {
+    setTimings((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      )
     );
+  };
 
-    const [slots, setSlots] = useState([
-        {
-            slot: "Slot 1",
-            enabled: true,
-            start: "09:00",
-            end: "22:00"
-        }
+  const toggleDay = (index) => {
+    setTimings((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, enabled: !item.enabled } : item
+      )
+    );
+  };
+
+  /* ================= SLOTS ================= */
+  const updateSlot = (index, field, value) => {
+    setSlots((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      )
+    );
+  };
+
+  const toggleSlot = (index) => {
+    setSlots((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, enabled: !item.enabled } : item
+      )
+    );
+  };
+
+  const addSlot = (e) => {
+    e.preventDefault();
+    setSlots((prev) => [
+      ...prev,
+      {
+        slot: `Slot ${prev.length + 1}`,
+        enabled: true,
+        start: "09:00",
+        end: "10:00",
+      },
     ]);
+  };
 
-    // =========================
-    // IMAGE HANDLING
-    // =========================
-    const handleFiles = (files) => {
-        const fileArray = Array.from(files);
+  const removeSlot = (index) => {
+    setSlots((prev) => prev.filter((_, i) => i !== index));
+  };
 
-        const newImages = fileArray.map((file) => ({
-            file,
-            preview: URL.createObjectURL(file)
-        }));
+  /* ================= SUBMIT ================= */
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-        setImages((prev) => [...prev, ...newImages]);
-    };
+    try {
+      const payload = {
+        ...form,
+        timings,
+        slots,
+        images: images.map((img) => img.file || img.preview),
+      };
 
-    const handleDrop = (e) => {
-        e.preventDefault();
-        handleFiles(e.dataTransfer.files);
-    };
+      if (society) {
+        await updateSociety(society.society_id, payload);
+      } else {
+        await createSociety(payload);
+      }
 
-    const handleRemoveImage = (index) => {
-        setImages((prev) => prev.filter((_, i) => i !== index));
-    };
+      onSuccess && onSuccess();
 
-    // =========================
-    // TIMINGS
-    // =========================
-    const updateTime = (index, field, value) => {
-        setTimings((prev) =>
-            prev.map((item, i) =>
-                i === index ? { ...item, [field]: value } : item
-            )
-        );
-    };
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    const toggleDay = (index) => {
-        setTimings((prev) =>
-            prev.map((item, i) =>
-                i === index ? { ...item, enabled: !item.enabled } : item
-            )
-        );
-    };
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
 
-    // =========================
-    // SLOTS
-    // =========================
-    const updateSlot = (index, field, value) => {
-        setSlots((prev) =>
-            prev.map((item, i) =>
-                i === index ? { ...item, [field]: value } : item
-            )
-        );
-    };
-
-    const toggleSlot = (index) => {
-        setSlots((prev) =>
-            prev.map((item, i) =>
-                i === index ? { ...item, enabled: !item.enabled } : item
-            )
-        );
-    };
-
-    const addSlot = () => {
-        setSlots((prev) => [
-            ...prev,
-            {
-                slot: `Slot ${prev.length + 1}`,
-                enabled: true,
-                start: "09:00",
-                end: "22:00"
-            }
-        ]);
-    };
-
-    const removeSlot = (index) => {
-        setSlots((prev) => prev.filter((_, i) => i !== index));
-    };
-
-    // =========================
-    // SUBMIT
-    // =========================
-    const handleSubmit = () => {
-        console.log("Images:", images);
-        console.log("Timings:", timings);
-        console.log("Slots:", slots);
-    };
+      {/* INPUTS */}
 
 
-    return (
-        <AdminLayout title="Add Amenity">
-            <div className="add-user-page" ref={containerRef}>
+      <input name="description" value={form.description} onChange={handleChange} className="input" placeholder="Description" />
 
-                {/* HEADER */}
-                {/* <div className="add-user-header">
-                    <div className="add-user-avatar">
-                        <img
-                            src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d"
-                            alt="User profile"
-                        />
-                        <button className="avatar-upload" type="button">
-                            <span className="upload-icon" />
-                        </button>
-                    </div>
-                </div> */}
+      <input name="specilities" value={form.specilities} onChange={handleChange} className="input" placeholder="Specialties" />
 
-                {/* Top Buttons */}
-                <div className="user-actions">
-                    <button
-                        className="btn btn outline"
-                        type="button"
-                        onClick={() => navigate("/amenities")}
-                    >
-                        ✏️ Edit Amenity
-                    </button>
+      <input name="important_instruction" value={form.important_instruction} onChange={handleChange} className="input" placeholder="Important Instruction" />
 
-                    
-                </div>
+      {/* ================= IMAGE ================= */}
+      <h4>Image Upload</h4>
+      <div className="image-upload-box"
+        onClick={() => fileInputRef.current.click()}
+        onDrop={handleDrop}
+        onDragOver={(e) => e.preventDefault()}
+      >
+        <p>📷 Drag & Drop or Click</p>
+        <input type="file" multiple hidden ref={fileInputRef}
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+      </div>
 
-                <div className="add-user-card">
+      <div className="image-preview">
+        {images.map((img, i) => (
+          <div key={i} className="preview-card">
+            <img src={img.preview} alt="" />
+            <button type="button" onClick={() => handleRemoveImage(i)}>✕</button>
+          </div>
+        ))}
+      </div>
 
-                    {/* FORM */}
-                    <div className="add-user-grid">
+      {/* ================= TIMINGS ================= */}
+      <div className="timings-section">
+        <h4>Timings</h4>
+        {timings.map((item, index) => (
+          <div key={item.day} className="timing-row">
 
-                        <label className="field">
-                            <span>Description</span>
-                            <textarea defaultValue="Ad Title"></textarea>
-                        </label>
+            <div className="day">{item.day}</div>
 
-                        <label className="field">
-                            <span>Service Details</span>
-                            <textarea></textarea>
-                        </label>
+            <input type="time"
+              value={item.start}
+              disabled={!item.enabled}
+              onChange={(e) => updateTime(index, "start", e.target.value)}
+            />
 
-                        <label className="field">
-                            <span>Important Instructions</span>
-                            <textarea></textarea>
-                        </label>
+            <input type="time"
+              value={item.end}
+              disabled={!item.enabled}
+              onChange={(e) => updateTime(index, "end", e.target.value)}
+            />
 
-                    </div>
+            <input type="checkbox"
+              checked={item.enabled}
+              onChange={() => toggleDay(index)}
+            />
+          </div>
+        ))}
+      </div>
 
-                    {/* ================= IMAGE UPLOAD ================= */}
+      {/* ================= SLOTS ================= */}
+      <div className="timings-section">
+        <h4>Time Slots</h4>
 
-                    <h4>Image Upload</h4>
-                    <div
-                        className="image-upload-box"
-                        onClick={() => fileInputRef.current.click()}
-                        onDrop={handleDrop}
-                        onDragOver={(e) => e.preventDefault()}
-                    >
+        {slots.map((item, index) => (
+          <div key={index} className="timing-row">
 
+            <div className="day">{item.slot}</div>
 
-                        <p>📷 Drag & Drop or Click to Upload</p>
+            <input type="time"
+              value={item.start}
+              disabled={!item.enabled}
+              onChange={(e) => updateSlot(index, "start", e.target.value)}
+            />
 
-                        <input
-                            type="file"
-                            multiple
-                            ref={fileInputRef}
-                            hidden
-                            onChange={(e) => handleFiles(e.target.files)}
-                        />
-                    </div>
+            <input type="time"
+              value={item.end}
+              disabled={!item.enabled}
+              onChange={(e) => updateSlot(index, "end", e.target.value)}
+            />
 
-                    {/* PREVIEW */}
-                    <div className="image-preview">
-                        {images.map((img, index) => (
-                            <div key={index} className="preview-card">
-                                <img src={img.preview} alt="preview" />
-                                <button onClick={() => handleRemoveImage(index)}>✕</button>
-                            </div>
-                        ))}
-                    </div>
+            <input type="checkbox"
+              checked={item.enabled}
+              onChange={() => toggleSlot(index)}
+            />
 
+            {slots.length > 1 && (
+              <button type="button" onClick={() => removeSlot(index)}>
+                Remove
+              </button>
+            )}
+          </div>
+        ))}
 
-                    {/* ========================= TIMINGS ========================= */}
-                    <div className="timings-section">
-                        <h4>Timings</h4>
+        <button type="button" onClick={addSlot}>
+          + Add Slot
+        </button>
+      </div>
 
-                        {timings.map((item, index) => (
-                            <div key={item.day} className="timing-row">
+      {!readOnly && (
+        <button className="bg-blue-600 text-white py-2 rounded">
+          {society ? "Update Amenity" : "Create Amenity"}
+        </button>
+      )}
 
-                                <div className="day">{item.day}</div>
-
-                                <div className="time-box">
-                                    <input
-                                        type="time"
-                                        value={item.start}
-                                        disabled={item.enabled}
-                                        onChange={(e) =>
-                                            updateTime(index, "start", e.target.value)
-                                        }
-                                    />
-
-                                    <input
-                                        type="time"
-                                        value={item.end}
-                                        disabled={item.enabled}
-                                        onChange={(e) =>
-                                            updateTime(index, "end", e.target.value)
-                                        }
-                                    />
-                                </div>
-
-                                <label className="switch">
-                                    <input
-                                        type="checkbox"
-                                        checked={item.enabled}
-                                        onChange={() => toggleDay(index)}
-                                    />
-                                    <span className="slider"></span>
-                                </label>
-
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* ========================= SLOTS ========================= */}
-                    <div className="timings-section">
-                        <h4>Time Slots</h4>
-
-                        {slots.map((item, index) => (
-                            <div key={item.slot} className="timing-row">
-
-                                <div className="day">{item.slot}</div>
-
-                                <div className="time-box">
-                                    <input
-                                        type="time"
-                                        value={item.start}
-                                        disabled={item.enabled}
-                                        onChange={(e) =>
-                                            updateSlot(index, "start", e.target.value)
-                                        }
-                                    />
-
-                                    <input
-                                        type="time"
-                                        value={item.end}
-                                        disabled={item.enabled}
-                                        onChange={(e) =>
-                                            updateSlot(index, "end", e.target.value)
-                                        }
-                                    />
-                                </div>
-
-                                <label className="switch">
-                                    <input
-                                        type="checkbox"
-                                        checked={item.enabled}
-                                        onChange={() => toggleSlot(index)}
-                                    />
-                                    <span className="slider"></span>
-                                </label>
-
-                                {/* REMOVE BUTTON */}
-                                {slots.length > 1 && (
-                                    <button
-                                        className="btn small danger"
-                                        onClick={() => removeSlot(index)}
-                                    >
-                                        Remove
-                                    </button>
-                                )}
-
-                            </div>
-                        ))}
-
-                        {/* ADD SLOT BUTTON */}
-                        <button className="btn secondary" onClick={addSlot}>
-                            + Add Slot
-                        </button>
-
-                    </div>
-
-                </div>
-
-                {/* ACTIONS */}
-                <div className="add-user-actions">
-                    <button className="btn ghost" onClick={() => navigate(-1)}>
-                        Cancel
-                    </button>
-
-                    <button className="btn primary" onClick={handleSubmit}>
-                        Add
-                    </button>
-                </div>
-
-            </div>
-        </AdminLayout>
-    );
+    </form>
+  );
 };
 
 export default AddAmenity;
