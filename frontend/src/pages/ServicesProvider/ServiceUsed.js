@@ -1,148 +1,194 @@
-import { useState } from "react";
-import AdminLayout from "../../layouts/AdminLayout";
-// import "./UserManagement.css";
-// import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 
-const users = [
-  {
-    societyname: "Hiranandani Estate",
-    servicename: "Laundry Service",
-    usedby: "Hiranandani Estate",
-    provider: "Himanshu Sharma",
-    phone: "+91 857412365",
-    datetime: "2023-10-10 10:00 AM",
-    
-  },
-];
+import AdminLayout from "../../layouts/AdminLayout";
+import DataTableLayout from "../../layouts/DataTableLayout";
+import DataTable from "../../components/common/DataTable";
+
+// import Button from "../../components/ui/Button";
+import ActionButtons from "../../components/common/ActionButtons";
+import FilterBar from "../../components/common/FilterBar";
+import Modal from "../../components/ui/Modal";
+// import SocietyForm from "../../components/societies/SocietyProviderForm";
+
+import {
+  getSocieties,
+  // deleteSociety,
+} from "../../services/societyService";
+// import SocietyProviderForm from "../../components/societies/SocietyProviderForm";
 
 const ServiceUsed = () => {
-  // const navigate = useNavigate();
-  const [showFilters, setShowFilters] = useState(false);
+  const [societies, setSocieties] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  const [openModal, setOpenModal] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [viewMode, setViewMode] = useState(false);
+
+  // 🔥 FILTER STATE
+  const [filters, setFilters] = useState({
+    search: "",
+  });
+
+  const [appliedFilters, setAppliedFilters] = useState({
+    search: "",
+  });
+
+  // 🔹 FETCH DATA
+  const fetchSocieties = async () => {
+    try {
+      const data = await getSocieties();
+      setSocieties(data);
+    } catch (err) {
+      console.error("Error fetching societies:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSocieties();
+  }, []);
+
+  // 🔹 FILTER LOGIC
+  const filteredData = societies.filter((item) => {
+    const search = appliedFilters.search.toLowerCase();
+
+    return (
+      !search ||
+      item.Service?.toLowerCase().includes(search) ||
+      item.society_name?.toLowerCase().includes(search)
+    );
+  });
+
+  // 🔹 HANDLERS
+  // const handleAdd = () => {
+  //   setSelected(null);
+  //   setViewMode(false);
+  //   setOpenModal(true);
+  // };
+
+  // const handleEdit = (row) => {
+  //   setSelected(row);
+  //   setViewMode(false);
+  //   setOpenModal(true);
+  // };
+
+  const handleView = (row) => {
+    setSelected(row);
+    setViewMode(true);
+    setOpenModal(true);
+  };
+
+  // const handleDelete = async (row) => {
+  //   if (!window.confirm("Deactivate this society?")) return;
+
+  //   try {
+  //     await deleteSociety(row.society_id);
+  //     fetchSocieties(); // refresh
+  //   } catch (err) {
+  //     console.error(err);
+  //   }
+  // };
+
+  // 🔹 APPLY FILTER
+  const handleApplyFilters = () => {
+    setAppliedFilters(filters);
+  };
+
+  const handleClearFilters = () => {
+    const empty = { search: "" };
+    setFilters(empty);
+    setAppliedFilters(empty);
+  };
+
+  // 🔹 COLUMNS
+  const columns = [
+    {
+      header: "Sr No",
+      render: (_, index) => index + 1,
+    },
+    { header: "Service Provider Name", accessor: "service_provider_name" },
+    
+    { header: "Society Name", accessor: "society_name" },
+    { header: "Service Name", accessor: "service_name" },
+    { header: "Used By", accessor: "used_by" },
+    { header: "Provider", accessor: "provider" },
+    { header: "Phone", accessor: "phone" },
+    {header: "Date & Time ", accessor: "datetime" },
+    
+    {
+      header: "Action",
+      render: (row) => (
+        <ActionButtons
+          row={row}
+          // onEdit={handleEdit}
+          // onDelete={handleDelete}
+          onView={handleView}
+          deleteLabel="Deactivate Society"
+        />
+      ),
+    },
+  ];
 
   return (
-    <AdminLayout title="Services Providers">
-      <div className="user-page">
+    <AdminLayout>
+      <DataTableLayout
+        title="Society Services"
 
-        {/* Top Buttons */}
-        {/* <div className="user-actions">
-          <button
-            className="btn primary"
-            type="button"
-            onClick={() => navigate("/add-service-provider")}
-          >
-            + Add New Service Provider
-          </button>
+        filters={
+          <FilterBar
+            filtersConfig={[
+              {
+                key: "search",
+                label: "Search",
+                type: "text",
+                placeholder: "Search society..."
+              },
+            ]}
+            filters={filters}
+            setFilters={setFilters}
+            onApply={handleApplyFilters}
+            onClear={handleClearFilters}
+          />
+        }
 
-          <button className="btn outline" type="button">
-            Export Data In Excel
-          </button>
-        </div> */}
+        // actions={
+        //   <Button variant="danger" onClick={handleAdd}>
+        //     + ADD SERVICE
+        //   </Button>
+        
+        // }
+      >
+        {loading ? (
+          <p className="p-4 text-gray-500">Loading Services Providers...</p>
+        ) : (
+          <DataTable columns={columns} data={filteredData} />
+        )}
+      </DataTableLayout>
 
-
-
-        <div className="user-card">
-
-
-          <div className="user-card-header">
-            <div className="user-card-top">
-              <h2>Services Providers</h2>
-              <button
-                className="filter-toggle"
-                type="button"
-                onClick={() => setShowFilters((prev) => !prev)}
-                aria-expanded={showFilters}
-              >
-                {showFilters ? "Hide Filters" : "Filters"}
-              </button>
-            </div>
-
-
-            <div className={`user-filters${showFilters ? " open" : ""}`}>
-              <select defaultValue="Society">
-                <option>Society</option>
-                <option>Hiranandani Estate</option>
-              </select>
-              <select defaultValue="Service">
-                <option>Service</option>
-                <option>Laundry Service</option>
-                <option>Clearing Service</option>
-              </select>
-              
-              <div className="user-search">
-                <span className="search-icon" aria-hidden="true" />
-                <input placeholder="Search by name" />
-              </div>
-
-            </div>
-
-
-
-
-          </div>
-
-
-          {/* Table */}
-          <div className="user-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Sr No</th>
-                  <th>Society Name</th>
-                  <th>Service Name</th>
-                  <th>Used By</th>
-                  <th>Provider</th>
-                  <th>Phone Number</th>
-                  <th>Date & Time</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {users.map((user, index) => (
-                  <tr key={`${user.email}-${index}`}>
-
-                    {/* ✅ Sr No */}
-                    <td data-label="Sr No">{index + 1}</td>
-
-                    <td data-label="Society Name">{user.societyname}</td>
-                    <td data-label="Service Name">{user.servicename}</td>
-                    <td data-label="Used By">{user.usedby}</td>
-                    <td data-label="Provider">{user.provider}</td>
-                    <td data-label="Phone Number">{user.phone}</td>
-                    <td data-label="Date & Time">{user.datetime}</td>
-
-                    <td data-label="Action">
-                      <div className="action-group">
-                        {/* <button
-                          className="icon-btn edit"
-                          type="button"
-                          aria-label="Edit"
-                        />
-                        <button
-                          className="icon-btn delete"
-                          type="button"
-                          aria-label="Delete"
-                        /> */}
-                        <button className="view-btn" type="button">
-                          View
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-
-            </table>
-          </div>
-        </div>
-
-      </div>
+      {/* 🔥 MODAL */}
+      <Modal
+        isOpen={openModal}
+        onClose={() => setOpenModal(false)}
+        title={
+          viewMode
+            ? "View Society"
+            : selected
+            ? "Edit Society"
+            : "Add Society"
+        }
+      >
+        {/* <SocietyProviderForm
+          society={selected}
+          readOnly={viewMode}
+          onSuccess={() => {
+            setOpenModal(false);
+            fetchSocieties(); // refresh
+          }}
+        /> */}
+      </Modal>
     </AdminLayout>
   );
 };
-
-
-
 
 export default ServiceUsed;

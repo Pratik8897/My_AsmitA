@@ -1,48 +1,87 @@
-import { useNavigate } from "react-router-dom";
-import AdminLayout from "../../layouts/AdminLayout";
-// import "./AddUser.css";
+import { useEffect, useState } from "react";
+// import "../../ServicesProvider/AddServicesProvider.css";
+// import "../../pages/ServicesProvider/AddServicesProvider.css"
+import {
+//   createSociety,
+//   updateSociety,
+} from "../../services/societyService";
 
-const AddFaq = () => {
-    const navigate = useNavigate();
+const AddFaq = ({ society, readOnly = false, onSuccess }) => {
 
-    return (
-        <AdminLayout title="FAQ">
-            <div className="add-user-page">
-                <div className="add-user-header">
+  const [form, setForm] = useState({
+    faq_title: "",
+    faq_content: "",
 
-                </div>
-
-                <div className="add-user-card">
-
-
-                    <div className="add-user-grid">
-
-                        <label className="field">
-                            <span>Enter FAQ</span>
-                            <input defaultValue="Lorem Ipsum is simply dummy text of the printing and typesetting industry. " />
-                        </label>
+  });
 
 
-                        <label className="field">
-                            <span>Enter Content For Description</span>
-                            <textarea defaultValue="Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book."></textarea>
-                        </label>
-                    </div>
 
-                    <div className="add-user-actions">
-                        <button className="btn ghost" type="button" onClick={() => navigate(-1)}>
-                            Cancel
-                        </button>
-                        <button className="btn primary" type="button">
-                            Add
-                        </button>
-                    </div>
-                </div>
-            </div>
+ 
+
+  // ✅ Populate form (FIXED)
+  useEffect(() => {
+    if (society) {
+      setForm({
+          faq_title: society.faq_title || "",
+        faq_content: society.faq_content || "",
+      });
+    } else {
+      setForm({
+        faq_title: "",
+        faq_content: "",
+      });
+    }
+  }, [society]);
+
+  // ✅ Handle input
+  const handleChange = (e) => {
+    if (readOnly) return;
+
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
+  };
 
 
-        </AdminLayout >
-    );
+
+  
+  
+
+  return (
+    <form className="flex flex-col gap-3">
+
+      <input
+        name="faq_title"
+        value={form.faq_title}
+        onChange={handleChange}
+        disabled={readOnly}
+        placeholder="FAQ Title"
+        className="input"
+        required
+      />
+
+      <input
+        name="faq_content"
+        value={form.faq_content}
+        onChange={handleChange}
+        disabled={readOnly}
+        placeholder="FAQ Content"
+        className="input"
+        required
+      />
+     
+
+      
+
+      {!readOnly && (
+        <button className="bg-blue-600 text-white py-2 rounded">
+          {society ? "Update FAQ" : "Create FAQ"}
+        </button>
+      )}
+
+    </form>
+  );
 };
 
 export default AddFaq;
