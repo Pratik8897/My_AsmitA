@@ -47,14 +47,14 @@ const SocietyServiceForm = ({ society, readOnly = false, onSuccess }) => {
       }
 
       onSuccess();
-    } catch (err) {
-      console.error(err);
-    }
+      } catch (err) {
+        console.error(err);
+      }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3"> 
+         
        <input
         name="service"
         value={form.service}
@@ -75,13 +75,15 @@ const SocietyServiceForm = ({ society, readOnly = false, onSuccess }) => {
         required
       />
 
-
       
       {!readOnly && (
+        
         <button className="bg-blue-600 text-white py-2 rounded">
           {society ? "Update Society" : "Create Society"}
         </button>
+
       )}
+
 
     </form>
   );

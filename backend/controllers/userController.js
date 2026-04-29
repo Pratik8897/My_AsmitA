@@ -2,6 +2,36 @@ const db = require("../config/db");
 const mobileNumberPattern = /^\d{10}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const ensureSocietyIdColumn = async () => {
+  const [rows] = await db.query(
+    `SELECT 1
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'users'
+       AND COLUMN_NAME = 'society_id'
+     LIMIT 1`
+  );
+
+  if (rows.length === 0) {
+    await db.query(`ALTER TABLE users ADD COLUMN society_id INT NULL`);
+  }
+};
+
+const ensureUserFlatMappingTable = async () => {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS user_flat_mapping (
+      mapping_id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      flat_id INT NOT NULL,
+      ownership_type ENUM('Owner','Tenant') NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_user_flat (user_id, flat_id),
+      INDEX idx_ufm_user (user_id),
+      INDEX idx_ufm_flat (flat_id)
+    )
+  `);
+};
+
 const normalizeMobileNumber = (value = "") =>
   String(value || "")
     .replace(/\D/g, "")
@@ -27,12 +57,43 @@ const findDuplicateUser = async ({
 
 exports.getUsers = async (req, res) => {
   try {
+    await ensureSocietyIdColumn();
+
+    const societyId = req.query.societyId ? Number(req.query.societyId) : null;
+
     const [rows] = await db.query(
-      "SELECT * FROM users WHERE COALESCE(is_active, 1) = 1"
+      `SELECT *
+       FROM users
+       WHERE COALESCE(is_active, 1) = 1
+         AND (? IS NULL OR society_id = ?)
+       ORDER BY user_id DESC`,
+      [societyId, societyId]
     );
     res.json(rows);
   } catch (err) {
     console.error("GET USERS ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getUserFlatMappings = async (req, res) => {
+  try {
+    await ensureUserFlatMappingTable();
+
+    const userId = Number(req.params.id);
+    if (!userId) return res.status(400).json({ error: "Invalid user id" });
+
+    const [rows] = await db.query(
+      `SELECT mapping_id, user_id, flat_id, ownership_type
+       FROM user_flat_mapping
+       WHERE user_id = ?
+       ORDER BY mapping_id ASC`,
+      [userId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error("GET USER FLAT MAPPINGS ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -48,6 +109,8 @@ exports.createUser = async (req, res) => {
       user_type,
       os_type,
       password_hash,
+      society_id,
+      flat_mappings,
     } = req.body;
 
     const normalizedEmail = String(email_id || "").trim().toLowerCase();
@@ -94,10 +157,13 @@ exports.createUser = async (req, res) => {
       });
     }
 
+    await ensureSocietyIdColumn();
+    await ensureUserFlatMappingTable();
+
     const [result] = await db.query(
       `INSERT INTO users
-       (full_name, email_id, mobile_number, gender, account_type, user_type, os_type, password_hash)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (full_name, email_id, mobile_number, gender, account_type, user_type, os_type, password_hash, society_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         full_name,
         normalizedEmail,
@@ -107,12 +173,32 @@ exports.createUser = async (req, res) => {
         user_type,
         os_type,
         password_hash,
+        society_id ? Number(society_id) : null,
       ]
     );
 
+    const userId = result.insertId;
+
+    if (Array.isArray(flat_mappings) && flat_mappings.length) {
+      const mappings = flat_mappings
+        .map((m) => ({
+          flat_id: Number(m?.flat_id),
+          ownership_type: m?.ownership_type === "Tenant" ? "Tenant" : "Owner",
+        }))
+        .filter((m) => Number.isInteger(m.flat_id) && m.flat_id > 0);
+
+      if (mappings.length) {
+        const values = mappings.map((m) => [userId, m.flat_id, m.ownership_type]);
+        await db.query(
+          "INSERT INTO user_flat_mapping (user_id, flat_id, ownership_type) VALUES ?",
+          [values]
+        );
+      }
+    }
+
     res.status(201).json({
       message: "User created successfully",
-      userId: result.insertId,
+      userId,
     });
   } catch (err) {
     console.error("CREATE USER ERROR:", err);
@@ -132,6 +218,8 @@ exports.updateUser = async (req, res) => {
       user_type,
       os_type,
       password_hash,
+      society_id,
+      flat_mappings,
     } = req.body;
 
     const normalizedEmail = String(email_id || "").trim().toLowerCase();
@@ -179,10 +267,13 @@ exports.updateUser = async (req, res) => {
       });
     }
 
+    await ensureSocietyIdColumn();
+    await ensureUserFlatMappingTable();
+
     if (password_hash) {
       await db.query(
         `UPDATE users
-         SET full_name = ?, email_id = ?, mobile_number = ?, gender = ?, account_type = ?, user_type = ?, os_type = ?, password_hash = ?
+         SET full_name = ?, email_id = ?, mobile_number = ?, gender = ?, account_type = ?, user_type = ?, os_type = ?, password_hash = ?, society_id = ?
          WHERE user_id = ?`,
         [
           full_name,
@@ -193,13 +284,14 @@ exports.updateUser = async (req, res) => {
           user_type,
           os_type,
           password_hash,
+          society_id ? Number(society_id) : null,
           id,
         ]
       );
     } else {
       await db.query(
         `UPDATE users
-         SET full_name = ?, email_id = ?, mobile_number = ?, gender = ?, account_type = ?, user_type = ?, os_type = ?
+         SET full_name = ?, email_id = ?, mobile_number = ?, gender = ?, account_type = ?, user_type = ?, os_type = ?, society_id = ?
          WHERE user_id = ?`,
         [
           full_name,
@@ -209,9 +301,29 @@ exports.updateUser = async (req, res) => {
           account_type || "app",
           user_type,
           os_type,
+          society_id ? Number(society_id) : null,
           id,
         ]
       );
+    }
+
+    if (Array.isArray(flat_mappings)) {
+      await db.query("DELETE FROM user_flat_mapping WHERE user_id = ?", [id]);
+
+      const mappings = flat_mappings
+        .map((m) => ({
+          flat_id: Number(m?.flat_id),
+          ownership_type: m?.ownership_type === "Tenant" ? "Tenant" : "Owner",
+        }))
+        .filter((m) => Number.isInteger(m.flat_id) && m.flat_id > 0);
+
+      if (mappings.length) {
+        const values = mappings.map((m) => [Number(id), m.flat_id, m.ownership_type]);
+        await db.query(
+          "INSERT INTO user_flat_mapping (user_id, flat_id, ownership_type) VALUES ?",
+          [values]
+        );
+      }
     }
 
     res.json({ message: "User updated" });

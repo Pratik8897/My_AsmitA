@@ -97,13 +97,15 @@ const TowerForm = ({
       )}
 
       <div className="flex gap-2">
-        <Button type="button" onClick={onBack}>
-          Back
-        </Button>
+        {!!onBack && (
+          <Button type="button" onClick={onBack}>
+            Back
+          </Button>
+        )}
 
         {!readOnly && (
           <Button type="submit" loading={loading}>
-            Save & Continue
+            Save Towers
           </Button>
         )}
       </div>

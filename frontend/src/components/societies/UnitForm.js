@@ -31,6 +31,7 @@ const UnitForm = ({
           tower_name: t.tower_name,
           total_floors: "",
           units_per_floor: "",
+          unit_types_csv: "",
         }))
       );
     }
@@ -43,9 +44,10 @@ const UnitForm = ({
         if (!towers?.length || !societyId) return;
 
         const data = await getTowerConfigs(societyId);
+        const towerConfigs = data?.towers || [];
 
         // ✅ fallback if no config found
-        if (!data || data.length === 0) {
+        if (!towerConfigs || towerConfigs.length === 0) {
           setConfigs(
             towers.map((t) => ({
               tower_id: t.tower_id,
@@ -57,11 +59,12 @@ const UnitForm = ({
           return;
         }
 
-        const mapped = data.map((t) => ({
+        const mapped = towerConfigs.map((t) => ({
           tower_id: t.tower_id,
           tower_name: t.tower_name,
           total_floors: t.total_floors || "",
           units_per_floor: t.units_per_floor || "",
+          unit_types_csv: "",
         }));
 
         setConfigs(mapped);
@@ -79,7 +82,7 @@ const UnitForm = ({
   const handleChange = (index, field, value) => {
     if (readOnly) return;
 
-    const clean = value.replace(/\D/g, "");
+    const clean = field === "unit_types_csv" ? value : value.replace(/\D/g, "");
 
     setConfigs((prev) => {
       const updated = [...prev];
@@ -129,16 +132,49 @@ const UnitForm = ({
         toast.error(`Invalid values in ${c.tower_name}`);
         return;
       }
+
+      if (c.unit_types_csv?.trim()) {
+        const types = c.unit_types_csv
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
+
+        if (types.length !== Number(c.units_per_floor)) {
+          toast.error(
+            `${c.tower_name}: Unit types count must match units per floor (${c.units_per_floor})`
+          );
+          return;
+        }
+
+        const allowed = new Set(["1BHK", "2BHK", "3BHK"]);
+        const invalid = types.find((t) => !allowed.has(t));
+        if (invalid) {
+          toast.error(
+            `${c.tower_name}: Invalid unit type "${invalid}". Use 1BHK, 2BHK, 3BHK`
+          );
+          return;
+        }
+      }
     }
 
     try {
       setLoading(true);
 
-      const payload = configs.map((c) => ({
-        tower_id: c.tower_id,
-        total_floors: Number(c.total_floors),
-        units_per_floor: Number(c.units_per_floor),
-      }));
+      const payload = configs.map((c) => {
+        const unitTypes = c.unit_types_csv?.trim()
+          ? c.unit_types_csv
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean)
+          : undefined;
+
+        return {
+          tower_id: c.tower_id,
+          total_floors: Number(c.total_floors),
+          units_per_floor: Number(c.units_per_floor),
+          ...(unitTypes ? { unit_types: unitTypes } : {}),
+        };
+      });
 
       await generateUnits({ configs: payload });
 
@@ -210,13 +246,31 @@ const UnitForm = ({
               className="input w-1/2"
             />
           </div>
+
+          <div className="mt-3">
+            <input
+              type="text"
+              placeholder='Unit types (optional): e.g. "1BHK,2BHK,3BHK"'
+              value={c.unit_types_csv || ""}
+              disabled={readOnly}
+              onChange={(e) =>
+                handleChange(i, "unit_types_csv", e.target.value)
+              }
+              className="input w-full"
+            />
+            <div className="text-[11px] text-gray-500 mt-1">
+              Enter exactly {c.units_per_floor || "N"} values (comma-separated) to set per-floor unit types by position.
+            </div>
+          </div>
         </div>
       ))}
 
       <div className="flex gap-2">
-        <Button variant="outline" onClick={onBack}>
-          Back
-        </Button>
+        {!!onBack && (
+          <Button variant="outline" onClick={onBack}>
+            Back
+          </Button>
+        )}
 
         {!readOnly && (
           <Button onClick={handleSubmit} loading={loading}>

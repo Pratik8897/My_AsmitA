@@ -1,13 +1,20 @@
 import api from "./api";
 
-export const getUsers = async () => {
+export const getUsers = async (societyId = null) => {
   try {
-    const res = await api.get("/users");
+    const res = await api.get("/users", {
+      params: societyId ? { societyId } : undefined,
+    });
     return res.data;
   } catch (err) {
     console.error("GET USERS ERROR:", err);
     throw err;
   }
+};
+
+export const getUserFlatMappings = async (userId) => {
+  const res = await api.get(`/users/${userId}/flats`);
+  return res.data;
 };
 
 export const createUser = async (data) => {

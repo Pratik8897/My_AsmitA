@@ -26,6 +26,8 @@ import Support from "../pages/SupportTicket/Support.js";
 import AddAdmin from "../pages/User/AddAdmin";
 import AddUser from "../pages/User/AddUser";
 import UserManagement from "../pages/User/UserManagement";
+import TowerManagement from "../pages/Tower/TowerManagement";
+import UnitManagement from "../pages/Unit/UnitManagement";
 
 const withProtection = (element, access = {}) => (
   <ProtectedRoute access={access}>{element}</ProtectedRoute>
@@ -112,6 +114,18 @@ const AppRoutes = () => {
           path="/floor-summary"
           element={withProtection(<FloorSummary />, {
             roles: ["admin", "super-admin", "society-admin", "society-manager"],
+          })}
+        />
+        <Route
+          path="/tower-management"
+          element={withProtection(<TowerManagement />, {
+            roles: ["admin", "super-admin", "society-admin"],
+          })}
+        />
+        <Route
+          path="/unit-management"
+          element={withProtection(<UnitManagement />, {
+            roles: ["admin", "super-admin", "society-admin"],
           })}
         />
         <Route

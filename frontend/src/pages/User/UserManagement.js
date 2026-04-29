@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./UserManagement.css";
 
 import AdminLayout from "../../layouts/AdminLayout";
@@ -19,6 +19,7 @@ import {
   getResidentRoles,
 } from "../../services/appSettingsService";
 import { deleteUser, getUsers } from "../../services/userService";
+import { getSocieties } from "../../services/societyService";
 const ALLOWED_DELETE_ROLES = ["Super Admin", "Admin"];
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -37,6 +38,8 @@ const UserManagement = () => {
     os_type: [],
     user_type: [],
   });
+  const [societies, setSocieties] = useState([]);
+  const [selectedSocietyId, setSelectedSocietyId] = useState("");
 
   const appUsers = useMemo(
     () => users,
@@ -65,36 +68,65 @@ const UserManagement = () => {
     },
   ];
 
-const getCurrentUserRole = () => {
+const getCurrentUser = () => {
   if (typeof window === "undefined") return null;
 
   try {
-    const user = JSON.parse(localStorage.getItem("myasmita:auth-user"));
-    return user?.user_type || null;
+    return JSON.parse(localStorage.getItem("myasmita:auth-user"));
   } catch (e) {
     return null;
   }
 };
 
-const currentUserRole = getCurrentUserRole();
+const currentUser = getCurrentUser();
+const currentUserRole = currentUser?.user_type || null;
+const currentUserSocietyId = currentUser?.society_id ? String(currentUser.society_id) : "";
 const canDelete = ALLOWED_DELETE_ROLES.includes(currentUserRole);
 
   console.log("Current User Role:", currentUserRole);  
 
-  const fetchUsers = async () => {
+  const canPickSociety = useMemo(
+    () => ["Super Admin", "Admin"].includes(currentUserRole),
+    [currentUserRole]
+  );
+
+  const effectiveSocietyId = canPickSociety ? selectedSocietyId : currentUserSocietyId;
+
+  const fetchUsers = useCallback(async () => {
     try {
-      const data = await getUsers();
+      const data = await getUsers(effectiveSocietyId || null);
       setUsers(data);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [effectiveSocietyId]);
+
+  const fetchSocieties = useCallback(async () => {
+    try {
+      const data = await getSocieties();
+      setSocieties(data || []);
+
+      if (canPickSociety) {
+        if (!selectedSocietyId && data?.length) {
+          setSelectedSocietyId(String(data[0].society_id));
+        }
+      } else if (currentUserSocietyId) {
+        setSelectedSocietyId(String(currentUserSocietyId));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, [canPickSociety, currentUserSocietyId, selectedSocietyId]);
+
+  useEffect(() => {
+    fetchSocieties();
+  }, [fetchSocieties]);
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
   useEffect(() => {
     const syncRoles = async () => {
@@ -165,6 +197,9 @@ const canDelete = ALLOWED_DELETE_ROLES.includes(currentUserRole);
     { header: "Gender", accessor: "gender" },
     { header: "User Type", accessor: "user_type" },
     { header: "OS Type", accessor: "os_type" },
+    ...(canPickSociety
+      ? [{ header: "Society ID", accessor: "society_id" }]
+      : []),
     {
       header: "Action",
       render: (row) => (
@@ -191,13 +226,34 @@ const canDelete = ALLOWED_DELETE_ROLES.includes(currentUserRole);
           </div>
         }
         filters={
-          <FilterBar
-            filtersConfig={filtersConfig}
-            filters={filters}
-            setFilters={setFilters}
-            onApply={handleApplyFilters}
-            onClear={handleClearFilters}
-          />
+          <div className="flex flex-col gap-3">
+            {canPickSociety && (
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-medium text-gray-700">
+                  Society:
+                </div>
+                <select
+                  value={selectedSocietyId}
+                  onChange={(e) => setSelectedSocietyId(e.target.value)}
+                  className="border px-3 py-2 rounded w-72"
+                >
+                  {societies.map((s) => (
+                    <option key={s.society_id} value={String(s.society_id)}>
+                      {s.society_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <FilterBar
+              filtersConfig={filtersConfig}
+              filters={filters}
+              setFilters={setFilters}
+              onApply={handleApplyFilters}
+              onClear={handleClearFilters}
+            />
+          </div>
         }
         actions={
           <Button
@@ -237,6 +293,9 @@ const canDelete = ALLOWED_DELETE_ROLES.includes(currentUserRole);
           accountType="app"
           formTitle="App User Details"
           roleLabel="App Role"
+          societies={societies}
+          defaultSocietyId={effectiveSocietyId}
+          lockSociety={!canPickSociety}
           onSuccess={() => {
             setOpenModal(false);
             fetchUsers();

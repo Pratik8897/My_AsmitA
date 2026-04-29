@@ -11,6 +11,8 @@ import {
   TruckIcon,
   LifebuoyIcon,
   Cog6ToothIcon,
+  BuildingLibraryIcon,   
+  RectangleGroupIcon,   
 } from "@heroicons/react/24/outline";
 
 export const menuItems = [
@@ -19,6 +21,7 @@ export const menuItems = [
     path: "/dashboard",
     icon: HomeIcon,
   },
+
   {
     label: "User Management",
     path: "/user-management",
@@ -26,6 +29,7 @@ export const menuItems = [
     roles: ["admin", "super-admin", "society-admin", "society-manager"],
     permission: "canManageUsers",
   },
+
   {
     label: "Society Management",
     path: "/society-management",
@@ -33,37 +37,52 @@ export const menuItems = [
     roles: ["admin", "super-admin", "society-admin"],
     permission: "canManageSocieties",
   },
+
+
+
   {
-    label: "Society Admin",
-    path: "/society-admin",
-    icon: UserCircleIcon,
+    label: "Tower Management",
+    path: "/tower-management",
+    icon: BuildingLibraryIcon,
     roles: ["admin", "super-admin", "society-admin"],
-    permission: "canManageUsers",
   },
+
+
+  {
+    label: "Unit Management",
+    path: "/unit-management",
+    icon: RectangleGroupIcon,
+    roles: ["admin", "super-admin", "society-admin"],
+  },
+
   {
     label: "Services",
     path: "/services",
     icon: WrenchIcon,
     roles: ["admin", "super-admin", "society-admin", "society-manager"],
   },
+
   {
     label: "Services Providers",
     path: "/services-providers",
     icon: BriefcaseIcon,
     roles: ["admin", "super-admin", "society-admin", "society-manager"],
   },
+
   {
     label: "Service Used",
     path: "/service-used",
     icon: ClipboardDocumentListIcon,
     roles: ["admin", "super-admin", "society-admin", "society-manager"],
   },
+
   {
     label: "Floor Summary",
     path: "/floor-summary",
     icon: Squares2X2Icon,
     roles: ["admin", "super-admin", "society-admin", "society-manager"],
   },
+
   {
     label: "Amenities",
     path: "/amenities",
@@ -77,6 +96,7 @@ export const menuItems = [
     ],
     permission: "canManageAmenities",
   },
+
   {
     label: "Parking Management",
     path: "/parking-management",
@@ -89,6 +109,7 @@ export const menuItems = [
       "security-guard",
     ],
   },
+
   {
     label: "Support",
     path: "/support",
@@ -102,10 +123,18 @@ export const menuItems = [
       "security-guard",
     ],
   },
+
   {
     label: "Settings",
     path: "/settings",
     icon: Cog6ToothIcon,
     roles: ["admin", "super-admin"],
+  },
+    {
+    label: "Society Admin",
+    path: "/society-admin",
+    icon: UserCircleIcon,
+    roles: ["admin", "super-admin", "society-admin"],
+    permission: "canManageUsers",
   },
 ];

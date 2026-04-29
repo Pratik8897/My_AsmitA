@@ -203,7 +203,7 @@ const SocietyForm = ({ society, readOnly = false, onSuccess }) => {
       {/* BUTTON */}
       {!readOnly && (
         <Button type="submit" loading={loading} fullWidth>
-          {society ? "Update Society" : "Save & Continue"}
+          {society ? "Update Society" : "Create Society"}
         </Button>
       )}
 

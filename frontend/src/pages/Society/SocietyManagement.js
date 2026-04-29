@@ -8,7 +8,7 @@ import DataTable from "../../components/common/DataTable";
 import Button from "../../components/ui/Button";
 import ActionButtons from "../../components/common/ActionButtons";
 import Modal from "../../components/ui/Modal";
-import SocietyWizard from "../../components/societies/SocietyWizard";
+import SocietyForm from "../../components/societies/SocietyForm";
 
 import {
   getSocieties,
@@ -216,16 +216,10 @@ const SocietyManagement = () => {
             : "Setup Society"
         }
       >
-        <SocietyWizard
+        <SocietyForm
           society={selected}
-          mode={
-            selected
-              ? viewMode
-                ? "view"
-                : "edit"
-              : "create"
-          }
-          onComplete={() => {
+          readOnly={viewMode}
+          onSuccess={() => {
             setOpenModal(false);
             fetchSocieties();
           }}

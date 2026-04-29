@@ -10,9 +10,11 @@ require("./config/db");
 // Routes
 const userRoutes = require("./routes/userRoutes");
 const societyRoutes = require("./routes/societyRoutes");
+const flatRoutes = require("./routes/flatRoutes");
 const societyAdminRoutes = require("./routes/societyAdminRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
+const unitRoutes = require("./routes/unitRoutes");
 
 // Middleware
 app.use(cors());
@@ -26,6 +28,8 @@ app.get("/", (req, res) => {
 // ✅ Users API
 app.use("/api/users", userRoutes);
 app.use("/api/societies", societyRoutes);
+app.use("/api/flats", flatRoutes);
+app.use("/api/units", unitRoutes);
 app.use("/api/society-admins", societyAdminRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/settings", settingsRoutes);
