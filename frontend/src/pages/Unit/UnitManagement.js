@@ -7,6 +7,7 @@ import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import UnitForm from "../../components/societies/UnitForm";
 import { toast } from "react-toastify";
+import Spinner from "../../components/ui/Spinner";
 
 import {
   getTowersBySociety,
@@ -336,7 +337,9 @@ const UnitManagement = () => {
             </div>
           )}
           {loading ? (
-            <p className="p-4">Loading...</p>
+            <div className="p-6 flex items-center justify-center">
+              <Spinner />
+            </div>
           ) : (
             <DataTable columns={columns} data={towerWithUnits} />
           )}
@@ -399,7 +402,9 @@ const UnitManagement = () => {
             )}
           </div>
         ) : (
-          <p>Loading...</p>
+          <div className="p-6 flex items-center justify-center">
+            <Spinner />
+          </div>
         )}
       </Modal>
     </>

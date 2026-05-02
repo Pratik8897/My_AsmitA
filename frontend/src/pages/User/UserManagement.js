@@ -10,6 +10,7 @@ import ActionButtons from "../../components/common/ActionButtons";
 import Modal from "../../components/ui/Modal";
 import UserForm from "../../components/users/UserForm";
 import FilterBar from "../../components/common/FilterBar";
+import Spinner from "../../components/ui/Spinner";
 
 
 import {
@@ -269,7 +270,9 @@ const canDelete = ALLOWED_DELETE_ROLES.includes(currentUserRole);
         }
       >
         {loading ? (
-          <p className="p-4 text-gray-500">Loading app users...</p>
+          <div className="p-6 flex items-center justify-center">
+            <Spinner />
+          </div>
         ) : (
           <DataTable columns={columns} data={filteredUsers} />
         )}

@@ -52,9 +52,81 @@ const ensureTowerIsActiveColumn = async () => {
   }
 };
 
+
+
+// exports.generateUnits = async (req, res) => {
+//   const configs = Array.isArray(req.body?.configs) ? req.body.configs : null;
+//   if (!configs || configs.length === 0) return res.status(400).json({ error: "configs[] is required" });
+
+//   const conn = await db.getConnection();
+
+//   try {
+//     await ensureTowerIsActiveColumn();
+//     await ensureFlatsColumns();
+//     await conn.beginTransaction();
+
+//     for (const config of configs) {
+//       const towerId = Number(config?.tower_id);
+//       const totalFloors = Number(config?.total_floors);
+//       const unitsPerFloor = Number(config?.units_per_floor);
+//       const unitTypes = Array.isArray(config?.unit_types) ? config.unit_types : null;
+
+//       if (!towerId || !Number.isInteger(totalFloors) || totalFloors <= 0 || !Number.isInteger(unitsPerFloor) || unitsPerFloor <= 0) {
+//         return res.status(400).json({ error: "Each config needs tower_id, total_floors (>0), units_per_floor (>0)" });
+//       }
+
+//       // Overwrite mode: delete floors, cascades flats + merged_*.
+//       await conn.query("DELETE FROM floors WHERE tower_id = ?", [towerId]);
+
+//       for (let floor = 1; floor <= totalFloors; floor++) {
+//         const [floorRes] = await conn.query(
+//           "INSERT INTO floors (tower_id, floor_number) VALUES (?, ?)",
+//           [towerId, floor]
+//         );
+
+//         const floorId = floorRes.insertId;
+//         const flatRows = [];
+
+//         for (let unitIndex = 1; unitIndex <= unitsPerFloor; unitIndex++) {
+//           const flatNumber = `${floor}${unitIndex.toString().padStart(2, "0")}`;
+//           const unitType = normalizeUnitType(unitTypes ? unitTypes[unitIndex - 1] : "1BHK");
+
+//           flatRows.push([
+//             floorId,
+//             flatNumber,
+//             unitType,
+//             normalizeStatus(config?.status || "available"),
+//             0,
+//             null,
+//             null,
+//           ]);
+//         }
+
+//         await conn.query(
+//           `INSERT INTO flats
+//            (floor_id, flat_number, unit_type, status, is_merged, merged_unit_id, merged_from)
+//            VALUES ?`,
+//           [flatRows]
+//         );
+//       }
+//     }
+
+//     await conn.commit();
+//     res.json({ message: "Units generated successfully" });
+//   } catch (error) {
+//     await conn.rollback();
+//     console.error("GENERATE UNITS ERROR:", error);
+//     res.status(500).json({ error: error.message });
+//   } finally {
+//     conn.release();
+//   }
+// };
+
 exports.generateUnits = async (req, res) => {
   const configs = Array.isArray(req.body?.configs) ? req.body.configs : null;
-  if (!configs || configs.length === 0) return res.status(400).json({ error: "configs[] is required" });
+  if (!configs || configs.length === 0) {
+    return res.status(400).json({ error: "configs[] is required" });
+  }
 
   const conn = await db.getConnection();
 
@@ -65,47 +137,115 @@ exports.generateUnits = async (req, res) => {
 
     for (const config of configs) {
       const towerId = Number(config?.tower_id);
-      const totalFloors = Number(config?.total_floors);
-      const unitsPerFloor = Number(config?.units_per_floor);
-      const unitTypes = Array.isArray(config?.unit_types) ? config.unit_types : null;
 
-      if (!towerId || !Number.isInteger(totalFloors) || totalFloors <= 0 || !Number.isInteger(unitsPerFloor) || unitsPerFloor <= 0) {
-        return res.status(400).json({ error: "Each config needs tower_id, total_floors (>0), units_per_floor (>0)" });
+      if (!towerId) {
+        return res.status(400).json({ error: "tower_id is required" });
       }
 
-      // Overwrite mode: delete floors, cascades flats + merged_*.
+      // 🔥 DELETE OLD DATA
       await conn.query("DELETE FROM floors WHERE tower_id = ?", [towerId]);
 
-      for (let floor = 1; floor <= totalFloors; floor++) {
-        const [floorRes] = await conn.query(
-          "INSERT INTO floors (tower_id, floor_number) VALUES (?, ?)",
-          [towerId, floor]
-        );
+      // =========================================================
+      // ✅ NEW MODE (floorConfigs)
+      // =========================================================
+      if (Array.isArray(config?.floors)) {
+        for (const floorObj of config.floors) {
+          const floorNumber = Number(floorObj.floor);
+          const units = Array.isArray(floorObj.units)
+            ? floorObj.units
+            : [];
 
-        const floorId = floorRes.insertId;
-        const flatRows = [];
+          if (!floorNumber || units.length === 0) continue;
 
-        for (let unitIndex = 1; unitIndex <= unitsPerFloor; unitIndex++) {
-          const flatNumber = `${floor}${unitIndex.toString().padStart(2, "0")}`;
-          const unitType = normalizeUnitType(unitTypes ? unitTypes[unitIndex - 1] : "1BHK");
+          const [floorRes] = await conn.query(
+            "INSERT INTO floors (tower_id, floor_number) VALUES (?, ?)",
+            [towerId, floorNumber]
+          );
 
-          flatRows.push([
-            floorId,
-            flatNumber,
-            unitType,
-            normalizeStatus(config?.status || "available"),
-            0,
-            null,
-            null,
-          ]);
+          const floorId = floorRes.insertId;
+          const flatRows = [];
+
+          units.forEach((type, index) => {
+            const flatNumber = `${floorNumber}${String(index + 1).padStart(2, "0")}`;
+
+            flatRows.push([
+              floorId,
+              flatNumber,
+              normalizeUnitType(type || "1BHK"),
+              normalizeStatus(config?.status || "available"),
+              0,
+              null,
+              null,
+            ]);
+          });
+
+          await conn.query(
+            `INSERT INTO flats
+            (floor_id, flat_number, unit_type, status, is_merged, merged_unit_id, merged_from)
+            VALUES ?`,
+            [flatRows]
+          );
+        }
+      }
+
+      // =========================================================
+      // ✅ OLD MODE (fallback - your existing logic)
+      // =========================================================
+      else {
+        const totalFloors = Number(config?.total_floors);
+        const unitsPerFloor = Number(config?.units_per_floor);
+        const unitTypes = Array.isArray(config?.unit_types)
+          ? config.unit_types
+          : null;
+
+        if (
+          !Number.isInteger(totalFloors) ||
+          totalFloors <= 0 ||
+          !Number.isInteger(unitsPerFloor) ||
+          unitsPerFloor <= 0
+        ) {
+          return res.status(400).json({
+            error:
+              "Provide either floors[] OR total_floors + units_per_floor",
+          });
         }
 
-        await conn.query(
-          `INSERT INTO flats
-           (floor_id, flat_number, unit_type, status, is_merged, merged_unit_id, merged_from)
-           VALUES ?`,
-          [flatRows]
-        );
+        for (let floor = 1; floor <= totalFloors; floor++) {
+          const [floorRes] = await conn.query(
+            "INSERT INTO floors (tower_id, floor_number) VALUES (?, ?)",
+            [towerId, floor]
+          );
+
+          const floorId = floorRes.insertId;
+          const flatRows = [];
+
+          for (let unitIndex = 1; unitIndex <= unitsPerFloor; unitIndex++) {
+            const flatNumber = `${floor}${unitIndex
+              .toString()
+              .padStart(2, "0")}`;
+
+            const unitType = normalizeUnitType(
+              unitTypes ? unitTypes[unitIndex - 1] : "1BHK"
+            );
+
+            flatRows.push([
+              floorId,
+              flatNumber,
+              unitType,
+              normalizeStatus(config?.status || "available"),
+              0,
+              null,
+              null,
+            ]);
+          }
+
+          await conn.query(
+            `INSERT INTO flats
+            (floor_id, flat_number, unit_type, status, is_merged, merged_unit_id, merged_from)
+            VALUES ?`,
+            [flatRows]
+          );
+        }
       }
     }
 
@@ -119,6 +259,7 @@ exports.generateUnits = async (req, res) => {
     conn.release();
   }
 };
+
 
 exports.getSocietyConfigs = async (req, res) => {
   try {

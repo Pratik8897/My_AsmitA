@@ -2,15 +2,14 @@ import api from "./api";
 import { toast } from "react-toastify";
 
 /**
- * Generate flats (units with merge support)
+ * Generate flats (first time only)
  */
 export const generateFlats = async (payload) => {
   try {
     const res = await api.post("/flats/generate", payload);
 
-    toast.success(`Generated ${res.data.inserted} units`);
+    toast.success(`Generated ${res.data.inserted || "units"}`);
     return res.data;
-
   } catch (error) {
     const message =
       error.response?.data?.error ||
@@ -23,7 +22,6 @@ export const generateFlats = async (payload) => {
 };
 
 /**
- * ✅ ADD THIS FUNCTION
  * Get flats by society
  */
 export const getFlatsBySociety = async (societyId) => {
@@ -40,6 +38,9 @@ export const getFlatsBySociety = async (societyId) => {
   }
 };
 
+/**
+ * Get assigned flats
+ */
 export const getAssignedFlatIdsBySociety = async (societyId) => {
   const res = await api.get("/flats/assigned", {
     params: { societyId },
@@ -47,6 +48,9 @@ export const getAssignedFlatIdsBySociety = async (societyId) => {
   return res.data;
 };
 
+/**
+ * Get flat details
+ */
 export const getFlatById = async (flatId) => {
   try {
     const res = await api.get(`/flats/${flatId}`);
@@ -56,6 +60,51 @@ export const getFlatById = async (flatId) => {
       error.response?.data?.error ||
       error.message ||
       "Failed to fetch flat details";
+
+    toast.error(message);
+    throw error;
+  }
+};
+
+/**
+ * Update unit types only
+ */
+export const bulkUpdateFlatUnitTypes = async (updates = []) => {
+  if (!updates.length) return;
+
+  try {
+    const res = await api.put("/flats/unit-types/bulk", { updates });
+
+    toast.success("Unit types updated");
+    return res.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.error ||
+      error.message ||
+      "Failed to update unit types";
+
+    toast.error(message);
+    throw error;
+  }
+};
+
+/**
+ * 🔥 NEW: Update structure (ADD / REMOVE units)
+ */
+export const updateFlatStructure = async (updates = []) => {
+  if (!updates.length) return;
+
+  try {
+    const res = await api.post("/flats/update-structure", updates);
+
+    toast.success("Units updated successfully");
+    return res.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.error ||
+      error.message ||
+      "Failed to update units";
+
     toast.error(message);
     throw error;
   }

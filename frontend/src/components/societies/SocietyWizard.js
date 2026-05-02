@@ -3,6 +3,7 @@ import SocietyForm from "./SocietyForm";
 import TowerForm from "./TowerForm";
 import UnitForm from "./UnitForm";
 import { getTowersBySociety } from "../../services/societyService";
+import Spinner from "../ui/Spinner";
 
 const SocietyWizard = ({
   society = null,
@@ -78,8 +79,10 @@ const SocietyWizard = ({
       {/* ---------------- STEP 3 ---------------- */}
       {step === 3 && (
         loading ? (
-          <p className="text-gray-500">Loading towers...</p>
-        ) : (
+          <div className="p-6 flex items-center justify-center">
+            <Spinner />
+          </div>
+        ) : (          
           <UnitForm
             towers={towers}
             societyId={societyId}

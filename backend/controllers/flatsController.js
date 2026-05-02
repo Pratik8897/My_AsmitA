@@ -1,52 +1,6 @@
 const db = require("../config/db");
 
 // ---------- helpers ----------
-const ensureFlatsColumns = async () => {
-  const [rows] = await db.query(
-    `SELECT COLUMN_NAME
-     FROM INFORMATION_SCHEMA.COLUMNS
-     WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME = 'flats'
-       AND COLUMN_NAME IN ('unit_type','status','is_merged','merged_unit_id','merged_from','owner_id')`
-  );
-
-  const existing = new Set(rows.map((r) => r.COLUMN_NAME));
-
-  if (!existing.has("unit_type")) {
-    await db.query("ALTER TABLE flats ADD COLUMN unit_type VARCHAR(20) NULL");
-  }
-  if (!existing.has("status")) {
-    await db.query("ALTER TABLE flats ADD COLUMN status VARCHAR(20) NULL");
-  }
-  if (!existing.has("is_merged")) {
-    await db.query("ALTER TABLE flats ADD COLUMN is_merged TINYINT(1) NOT NULL DEFAULT 0");
-  }
-  if (!existing.has("merged_unit_id")) {
-    await db.query("ALTER TABLE flats ADD COLUMN merged_unit_id INT NULL");
-  }
-  if (!existing.has("merged_from")) {
-    await db.query("ALTER TABLE flats ADD COLUMN merged_from VARCHAR(100) NULL");
-  }
-  if (!existing.has("owner_id")) {
-    await db.query("ALTER TABLE flats ADD COLUMN owner_id INT NULL");
-  }
-};
-
-const ensureUserFlatMappingTable = async () => {
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS user_flat_mapping (
-      mapping_id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NOT NULL,
-      flat_id INT NOT NULL,
-      ownership_type ENUM('Owner','Tenant') NOT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE KEY uq_user_flat (user_id, flat_id),
-      INDEX idx_ufm_user (user_id),
-      INDEX idx_ufm_flat (flat_id)
-    )
-  `);
-};
-
 const parseUnits = (value, type) => {
   if (!value) return [];
 
@@ -63,6 +17,7 @@ const parseUnits = (value, type) => {
   return [];
 };
 
+
 const hasOverlap = (sets) => {
   const seen = new Set();
   for (const arr of sets) {
@@ -74,27 +29,32 @@ const hasOverlap = (sets) => {
   return false;
 };
 
+
 // ================= GET FLATS BY SOCIETY =================
 exports.getFlatsBySociety = async (req, res) => {
   try {
-    await ensureFlatsColumns();
     const { societyId } = req.params;
 
-    const [rows] = await db.query(`
+    const [rows] = await db.query(
+      `
       SELECT 
         f.*,
-        fl.floor_number,   -- ✅ ADD THIS
+        fl.floor_number,
         t.tower_id
       FROM flats f
       JOIN floors fl ON f.floor_id = fl.floor_id
       JOIN towers t ON fl.tower_id = t.tower_id
       WHERE t.society_id = ?
+        AND (f.status IS NULL OR f.status != 'inactive')  -- ✅ FIX
       ORDER BY t.tower_id, fl.floor_number, f.flat_number
-    `, [societyId]);
+      `,
+      [societyId]
+    );
 
     res.json(rows);
 
   } catch (err) {
+    console.error("GET FLATS ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -104,7 +64,7 @@ exports.generateFlats = async (req, res) => {
   const conn = await db.getConnection();
 
   try {
-    await ensureFlatsColumns();
+
     const {
       floor_ids,
       units_per_floor,
@@ -233,29 +193,169 @@ exports.generateFlats = async (req, res) => {
   }
 };
 
+exports.updateFlatStructure = async (req, res) => {
+  const updates = Array.isArray(req.body) ? req.body : [];
+  if (!updates.length) {
+    return res.status(400).json({ error: "No updates provided" });
+  }
 
+  const conn = await db.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    for (const u of updates) {
+
+      // ---------------- ADD ----------------
+      // if (u.action === "ADD") {
+      //   const [floor] = await conn.query(
+      //     "SELECT floor_id FROM floors WHERE tower_id = ? AND floor_number = ?",
+      //     [u.tower_id, u.floor_number]
+      //   );
+
+      //   if (!floor.length) continue;
+
+      //   await conn.query(
+      //     `INSERT INTO flats 
+      //      (floor_id, flat_number, unit_type, status)
+      //      VALUES (?, ?, ?, 'available')`,
+      //     [floor[0].floor_id, u.flat_number, u.unit_type || "1BHK"]
+      //   );
+      // }
+      if (u.action === "ADD") {
+        const [floor] = await conn.query(
+          "SELECT floor_id FROM floors WHERE tower_id = ? AND floor_number = ?",
+          [u.tower_id, u.floor_number]
+        );
+
+        if (!floor.length) continue;
+
+        const floorId = floor[0].floor_id;
+
+        // 🔥 CHECK EXISTING (inactive)
+        const [existing] = await conn.query(
+          `SELECT flat_id, status FROM flats 
+          WHERE floor_id = ? AND flat_number = ?`,
+          [floorId, u.flat_number]
+        );
+
+        if (existing.length > 0) {
+          // ✅ RE-ACTIVATE instead of insert
+          await conn.query(
+            `UPDATE flats 
+            SET status = 'available', unit_type = ? 
+            WHERE flat_id = ?`,
+            [u.unit_type || "1BHK", existing[0].flat_id]
+          );
+        } else {
+          // ✅ INSERT only if not exists
+          await conn.query(
+            `INSERT INTO flats 
+            (floor_id, flat_number, unit_type, status)
+            VALUES (?, ?, ?, 'available')`,
+            [floorId, u.flat_number, u.unit_type || "1BHK"]
+          );
+        }
+      }
+      // ---------------- REMOVE ----------------
+      if (u.action === "REMOVE") {
+        await conn.query(
+          "UPDATE flats SET status = 'inactive' WHERE flat_id = ?",
+          [u.flat_id]
+        );
+      }
+    }
+
+    await conn.commit();
+    res.json({ success: true });
+
+  } catch (err) {
+    await conn.rollback();
+    console.error("UPDATE STRUCTURE ERROR:", err);
+    res.status(500).json({ error: err.message });
+
+  } finally {
+    conn.release();
+  }
+};
+
+exports.bulkUpdateUnitTypes = async (req, res) => {
+  const updates = req.body.updates || [];
+
+  if (!updates.length) {
+    return res.json({ success: true });
+  }
+
+  try {
+    const queries = updates.map((u) =>
+      db.query(
+        "UPDATE flats SET unit_type = ? WHERE flat_id = ?",
+        [u.unit_type, u.flat_id]
+      )
+    );
+
+    await Promise.all(queries);
+
+    res.json({ success: true });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+exports.getAssignedFlatIdsBySociety = async (req, res) => {
+  try {
+    const { societyId } = req.query;
+
+    if (!societyId) {
+      return res.status(400).json({ error: "societyId is required" });
+    }
+
+    const [rows] = await db.query(
+      `
+      SELECT f.flat_id
+      FROM flats f
+      JOIN floors fl ON f.floor_id = fl.floor_id
+      JOIN towers t ON fl.tower_id = t.tower_id
+      WHERE t.society_id = ?
+      AND f.owner_id IS NOT NULL
+      `,
+      [societyId]
+    );
+
+    // return only flat_ids
+    const flatIds = rows.map(r => r.flat_id);
+
+    res.json(flatIds);
+
+  } catch (err) {
+    console.error("GET ASSIGNED FLATS ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
 exports.getFlatById = async (req, res) => {
   try {
-    await ensureFlatsColumns();
-    await ensureUserFlatMappingTable();
     const { flatId } = req.params;
 
-    const [rows] = await db.query(`
+    if (!flatId) {
+      return res.status(400).json({ error: "flatId is required" });
+    }
+
+    const [rows] = await db.query(
+      `
       SELECT 
         f.*,
-        COALESCE(u_owner.full_name, u_flat.full_name) AS owner_name,
-        COALESCE(u_owner.mobile_number, u_flat.mobile_number) AS phone,
-        COALESCE(u_owner.email_id, u_flat.email_id) AS email,
-        ufm_owner.ownership_type AS ownership_type
+        fl.floor_number,
+        t.tower_id
       FROM flats f
-      LEFT JOIN user_flat_mapping ufm_owner
-        ON ufm_owner.flat_id = f.flat_id
-       AND ufm_owner.ownership_type = 'Owner'
-      LEFT JOIN users u_owner ON u_owner.user_id = ufm_owner.user_id
-      -- fallback for older data that used flats.owner_id
-      LEFT JOIN users u_flat ON f.owner_id = u_flat.user_id
+      JOIN floors fl ON f.floor_id = fl.floor_id
+      JOIN towers t ON fl.tower_id = t.tower_id
       WHERE f.flat_id = ?
-    `, [flatId]);
+        AND (f.status IS NULL OR f.status != 'inactive')
+      `,
+      [flatId]
+    );
 
     if (!rows.length) {
       return res.status(404).json({ error: "Flat not found" });
@@ -269,26 +369,28 @@ exports.getFlatById = async (req, res) => {
   }
 };
 
-exports.getAssignedFlatIdsBySociety = async (req, res) => {
-  try {
-    await ensureUserFlatMappingTable();
+// exports.getFlatById = async (req, res) => {
+//   try {
+//     const { flatId } = req.params;
 
-    const societyId = req.query.societyId ? Number(req.query.societyId) : null;
-    if (!societyId) return res.status(400).json({ error: "societyId is required" });
+//     const [rows] = await db.query(`
+//       SELECT 
+//         f.*,
+//         u.name AS owner_name,
+//         u.phone,
+//         u.email
+//       FROM flats f
+//       LEFT JOIN users u ON f.owner_id = u.user_id
+//       WHERE f.flat_id = ?
+//     `, [flatId]);
 
-    const [rows] = await db.query(
-      `SELECT DISTINCT ufm.flat_id
-       FROM user_flat_mapping ufm
-       JOIN flats f ON f.flat_id = ufm.flat_id
-       JOIN floors fl ON fl.floor_id = f.floor_id
-       JOIN towers t ON t.tower_id = fl.tower_id
-       WHERE t.society_id = ?`,
-      [societyId]
-    );
+//     if (!rows.length) {
+//       return res.status(404).json({ error: "Flat not found" });
+//     }
 
-    res.json(rows.map((r) => r.flat_id));
-  } catch (err) {
-    console.error("GET ASSIGNED FLATS ERROR:", err);
-    res.status(500).json({ error: err.message });
-  }
-};
+//     res.json(rows[0]);
+
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };

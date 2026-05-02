@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../../layouts/AdminLayout";
 import { getDashboardStats } from "../../services/dashboardService";
+import Spinner from "../../components/ui/Spinner";
 import "./Dashboard.css";
 
 const formatValue = (value) => {
@@ -61,6 +62,12 @@ const buildCards = (stats) => [
   },
 ];
 
+const loadingCards = () =>
+  buildCards({
+    totals: { users: null, societies: null, services: null },
+    recent: { users: null, societies: null, services: null },
+  });
+
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -97,12 +104,25 @@ const Dashboard = () => {
   }, []);
 
   const statCards = useMemo(() => buildCards(stats), [stats]);
+  const skeletonCards = useMemo(() => loadingCards(), []);
 
   return (
     <AdminLayout title="Welcome to My Asmita Dashboard">
       {loading ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-          Loading dashboard data...
+        <div className="stats-grid">
+          {skeletonCards.map((card) => (
+            <article key={card.title} className={`stat-card ${card.tone}`}>
+              <div className={`stat-icon ${card.icon}`} />
+              <div className="stat-body">
+                <div className="flex items-center gap-2">
+                  <p>{card.title}</p>
+                  <Spinner size={16} className="border-white/40 border-t-white" />
+                </div>
+                <h2>—</h2>
+                <span> </span>
+              </div>
+            </article>
+          ))}
         </div>
       ) : error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 shadow-sm">

@@ -9,6 +9,7 @@ import Button from "../../components/ui/Button";
 import ActionButtons from "../../components/common/ActionButtons";
 import Modal from "../../components/ui/Modal";
 import SocietyForm from "../../components/societies/SocietyForm";
+import Spinner from "../../components/ui/Spinner";
 
 import {
   getSocieties,
@@ -198,7 +199,9 @@ const SocietyManagement = () => {
         }
       >
         {loading ? (
-          <p className="p-4 text-gray-500">Loading societies...</p>
+          <div className="p-6 flex items-center justify-center">
+            <Spinner />
+          </div>
         ) : (
           <DataTable columns={columns} data={societies} />
         )}

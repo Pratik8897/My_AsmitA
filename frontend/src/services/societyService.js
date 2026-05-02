@@ -106,7 +106,12 @@ export const createTowers = async (data) => {
 export const getTowerConfigs = async (societyId) => {
   try {
     const res = await api.get(`/societies/${societyId}/configs`);
-    return res.data;
+    const data = res.data;
+
+    // Backend returns: { towers: [...], merged_units: [...] }
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.towers)) return data.towers;
+    return [];
   } catch (err) {
     handleError(err, "GET CONFIG ERROR");
   }

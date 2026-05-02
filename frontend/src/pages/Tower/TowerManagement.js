@@ -8,6 +8,7 @@ import Modal from "../../components/ui/Modal";
 import TowerForm from "../../components/societies/TowerForm";
 import ActionButtons from "../../components/common/ActionButtons";
 import { toast } from "react-toastify";
+import Spinner from "../../components/ui/Spinner";
 
 import { deleteTower, getTowersBySociety, getSocieties } from "../../services/societyService";
 
@@ -124,7 +125,9 @@ const TowerManagement = () => {
         }
       >
         {loading ? (
-          <p className="p-4">Loading...</p>
+          <div className="p-6 flex items-center justify-center">
+            <Spinner />
+          </div>
         ) : (
           <DataTable columns={columns} data={towers} />
         )}

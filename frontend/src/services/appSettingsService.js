@@ -170,6 +170,10 @@ const emitSettingsUpdated = () => {
 
 export const getAppSettings = async () => {
   try {
+    if (settingsCache) {
+      return settingsCache;
+    }
+
     const res = await api.get("/settings");
     settingsCache = normalizeSettings(res.data);
     return settingsCache;
@@ -178,6 +182,8 @@ export const getAppSettings = async () => {
     return settingsCache || normalizeSettings(defaultAppSettings);
   }
 };
+
+export const getCachedAppSettings = () => settingsCache;
 
 export const saveAppSettings = async (settings) => {
   const payload = normalizeSettings(settings);
