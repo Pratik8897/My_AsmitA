@@ -92,10 +92,11 @@ export const bulkUpdateFlatUnitTypes = async (updates = []) => {
  * 🔥 NEW: Update structure (ADD / REMOVE units)
  */
 export const updateFlatStructure = async (updates = []) => {
-  if (!updates.length) return;
+  const payload = updates;
+  if (!payload || (Array.isArray(payload) && payload.length === 0)) return;
 
   try {
-    const res = await api.post("/flats/update-structure", updates);
+    const res = await api.post("/flats/update-structure", payload);
 
     toast.success("Units updated successfully");
     return res.data;

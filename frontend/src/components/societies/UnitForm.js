@@ -3,908 +3,529 @@ import { toast } from "react-toastify";
 import Button from "../ui/Button";
 import Input from "../ui/Input";
 import Dropdown from "../ui/Dropdown";
-import { generateUnits, getTowerConfigs } from "../../services/societyService";
-import { bulkUpdateFlatUnitTypes, getFlatsBySociety, updateFlatStructure } from "../../services/flatsService";
-import { Pencil, X  } from "lucide-react";
+import {
+  generateUnits,
+  getTowerConfigs,
+} from "../../services/societyService";
+import {
+  bulkUpdateFlatUnitTypes,
+  getFlatsBySociety,
+  updateFlatStructure,
+} from "../../services/flatsService";
+import { Pencil, X } from "lucide-react";
 
 const UNIT_OPTIONS = ["1BHK", "2BHK", "3BHK"];
-const MAX_FLOORS = 99;
 const MAX_UNITS = 50;
 
-const UnitForm = ({
-  towers = [],
-  societyId = null,
-  readOnly = false,
-  onBack,
-  onSuccess,
-}) => {
+const UnitForm = ({ towers = [], societyId, readOnly, onSuccess }) => {
   const [configs, setConfigs] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [existingByTowerId, setExistingByTowerId] = useState({});
-  const [existingFloorsByTowerId, setExistingFloorsByTowerId] = useState({});
+  const [activeTowerId, setActiveTowerId] = useState(null);
   const [editableFloors, setEditableFloors] = useState({});
   const [originalFloorSnapshot, setOriginalFloorSnapshot] = useState({});
-  
-  const isFloorEditable = (towerId, floorNo) =>
-    !!editableFloors?.[towerId]?.[floorNo];
+  const [loading, setLoading] = useState(false);
+  const [expandedFloors, setExpandedFloors] = useState({}); // {towerId: {floorNo: true/false}}
 
-  const toggleFloorEdit = (towerId, floorNo, towerIndex, floorIndex) => {
-    setEditableFloors((prev) => {
-      const next = { ...(prev || {}) };
+  const isEditable = (towerId, floorNo) =>
+    !!editableFloors?.[towerId]?.[Number(floorNo)];
+
+  const isExpanded = (towerId, floorNo) =>
+    !!expandedFloors?.[towerId]?.[Number(floorNo)];
+
+  const toggleFloorExpand = (towerId, floorNo) => {
+    setExpandedFloors((prev) => {
+      const next = { ...prev };
       const towerMap = { ...(next[towerId] || {}) };
+      towerMap[Number(floorNo)] = !towerMap[Number(floorNo)];
+      next[towerId] = towerMap;
+      return next;
+    });
+  };
 
-      const isEditing = towerMap[floorNo];
+  const addFloor = (tIndex) => {
+    setConfigs((prev) =>
+      prev.map((t, i) => {
+        if (i !== tIndex) return t;
+
+        const maxFloor = t.floorConfigs.length > 0
+          ? Math.max(...t.floorConfigs.map((f) => f.floor))
+          : 0;
+
+        const newFloor = {
+          floor: maxFloor + 1,
+          units: [],
+          unitCount: 0,
+          defaultType: "1BHK",
+        };
+
+        return {
+          ...t,
+          floorConfigs: [...t.floorConfigs, newFloor].sort((a, b) => a.floor - b.floor),
+        };
+      })
+    );
+  };
+
+  /* ================= INIT ================= */
+  useEffect(() => {
+    if (!towers?.length) return;
+
+    setActiveTowerId(towers[0]?.tower_id);
+  }, [towers]);
+
+  /* ================= LOAD EXISTING ================= */
+  const loadConfigs = async () => {
+    if (!societyId || !towers.length) return;
+
+    try {
+      const [towerConfigs, flats] = await Promise.all([
+        getTowerConfigs(societyId),
+        getFlatsBySociety(societyId),
+      ]);
+
+      const map = {};
+
+      flats.forEach((f) => {
+        const tId = f.tower_id;
+        const floor = Number(f.floor_number);
+
+        if (!map[tId]) map[tId] = {};
+        if (!map[tId][floor]) map[tId][floor] = [];
+
+        map[tId][floor].push({
+          flat_id: f.flat_id,
+          number: String(f.flat_number),
+          type: f.unit_type || "1BHK",
+        });
+      });
+
+      setConfigs(
+        towers.map((t) => {
+          const config = towerConfigs.find(
+            (tc) => tc.tower_id === t.tower_id
+          );
+
+          const floors = map[t.tower_id] || {};
+
+          const floorConfigs = Object.keys(floors)
+            .map((floorNo) => {
+              const units = floors[floorNo];
+
+              return {
+                floor: Number(floorNo),
+                units,
+                unitCount: units.length,
+                defaultType:
+                  units.every((u) => u.type === units[0].type)
+                    ? units[0].type
+                    : "1BHK",
+              };
+            })
+            .sort((a, b) => a.floor - b.floor);
+
+          return {
+            tower_id: t.tower_id,
+            tower_name: t.tower_name,
+            total_floors: config?.total_floors || "",
+            units_per_floor: config?.units_per_floor || "",
+            floorConfigs,
+            hasExistingUnits: floorConfigs.length > 0,
+          };
+        })
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadConfigs();
+  }, [societyId, towers]);
+
+  /* ================= EDIT TOGGLE ================= */
+  const toggleFloorEdit = (towerId, floorNo, tIndex, fIndex) => {
+    const fNo = Number(floorNo);
+
+    setEditableFloors((prev) => {
+      const next = { ...prev };
+      const towerMap = { ...(next[towerId] || {}) };
+      const isEditing = towerMap[fNo];
 
       if (!isEditing) {
-        // 🔥 START EDIT → SAVE SNAPSHOT
-        const floorData = configs[towerIndex].floorConfigs[floorIndex];
+        const snapshot = configs[tIndex].floorConfigs[fIndex];
 
         setOriginalFloorSnapshot((prevSnap) => ({
           ...prevSnap,
           [towerId]: {
             ...(prevSnap[towerId] || {}),
-            [floorNo]: JSON.parse(JSON.stringify(floorData)),
+            [fNo]: JSON.parse(JSON.stringify(snapshot)),
           },
         }));
       } else {
-        // 🔥 CANCEL EDIT → RESTORE SNAPSHOT
-        const snapshot =
-          originalFloorSnapshot?.[towerId]?.[floorNo];
+        const snap = originalFloorSnapshot?.[towerId]?.[fNo];
 
-        if (snapshot) {
-          setConfigs((prevConfigs) =>
-            prevConfigs.map((t) => {
-              if (t.tower_id !== towerId) return t;
-
-              return {
-                ...t,
-                floorConfigs: t.floorConfigs.map((f) =>
-                  f.floor === floorNo ? snapshot : f
-                ),
-              };
-            })
+        if (snap) {
+          setConfigs((prev) =>
+            prev.map((t) =>
+              t.tower_id === towerId
+                ? {
+                    ...t,
+                    floorConfigs: t.floorConfigs.map((f) =>
+                      f.floor === fNo ? snap : f
+                    ),
+                  }
+                : t
+            )
           );
         }
       }
 
-      towerMap[floorNo] = !isEditing;
+      towerMap[fNo] = !isEditing;
       next[towerId] = towerMap;
-
       return next;
     });
   };
 
-  const setFieldError = (towerId, field, message) => {
-    if (!towerId) return;
-
-    setErrors((prev) => {
-      const next = { ...(prev || {}) };
-      next[towerId] = { ...(next[towerId] || {}), [field]: message };
-
-      if (!message) {
-        delete next[towerId][field];
-        if (Object.keys(next[towerId]).length === 0) delete next[towerId];
-      }
-
-      return next;
-    });
-  };
-
-  const notifyLimit = (towerId, towerName, field, limit) => {
-    const label =
-      field === "total_floors" ? "Total floors" : "Units per floor";
-
-    toast.warn(`${towerName}: ${label} cannot be greater than ${limit}`, {
-      toastId: `limit-${towerId}-${field}`,
-    });
-  };
-
-  /* ---------------- INIT ---------------- */
-  useEffect(() => {
-    if (!towers?.length) return;
-
-    setConfigs((prev) => {
-      const prevById = Object.fromEntries(
-        (prev || []).map((c) => [c.tower_id, c])
-      );
-
-      return towers.map((t) => {
-        const prevC = prevById[t.tower_id];
-        const existing = existingByTowerId[t.tower_id];
-        const existingFloors = existingFloorsByTowerId[t.tower_id];
-
-        return {
-          tower_id: t.tower_id,
-          tower_name: t.tower_name,
-          total_floors:
-            existing?.total_floors != null
-              ? String(existing.total_floors)
-              : prevC?.total_floors || "",
-          units_per_floor:
-            existing?.units_per_floor != null
-              ? String(existing.units_per_floor)
-              : prevC?.units_per_floor || "",
-          floorConfigs:
-            existing?.hasUnits && Array.isArray(existingFloors)
-              ? existingFloors
-              : prevC?.floorConfigs || [],
-          hasExistingUnits: !!existing?.hasUnits,
-          existingUnitsCount: existing?.unitsCount || 0,
-        };
-      });
-    });
-  }, [towers, existingByTowerId, existingFloorsByTowerId]);
-
-  /* ---------------- LOAD EXISTING UNITS ---------------- */
-  useEffect(() => {
-    const loadConfigs = async () => {
-      if (!societyId) return;
-
-      try {
-        const data = await getTowerConfigs(societyId);
-        const map = {};
-
-        (data || []).forEach((t) => {
-          const totalFloors = Number(t.total_floors || 0);
-          const unitsPerFloor = Number(t.units_per_floor || 0);
-          const unitsCount = totalFloors * unitsPerFloor;
-
-          map[t.tower_id] = {
-            hasUnits: unitsCount > 0,
-            unitsCount,
-            total_floors: totalFloors,
-            units_per_floor: unitsPerFloor,
-          };
-        });
-
-        setExistingByTowerId(map);
-      } catch (err) {
-        console.error("LOAD TOWER CONFIGS ERROR:", err);
-      }
-    };
-
-    loadConfigs();
-  }, [societyId]);
-
-  /* ---------------- LOAD EXISTING FLOOR/UNIT TYPES ---------------- */
-  useEffect(() => {
-    const loadExistingFloors = async () => {
-      if (!societyId) return;
-
-      try {
-        const flats = await getFlatsBySociety(societyId);
-        const byTower = {};
-
-        (flats || []).forEach((f) => {
-          const towerId = f.tower_id;
-          const floorNo = Number(f.floor_number);
-          if (!towerId || !floorNo) return;
-
-          byTower[towerId] = byTower[towerId] || {};
-          byTower[towerId][floorNo] = byTower[towerId][floorNo] || [];
-
-          byTower[towerId][floorNo].push({
-            flat_id: f.flat_id,
-            number: String(f.flat_number),
-            type: f.unit_type || "1BHK",
-          });
-        });
-
-        const floorsMap = {};
-        Object.keys(byTower).forEach((towerId) => {
-          const floorsObj = byTower[towerId];
-          const floorNumbers = Object.keys(floorsObj)
-            .map((n) => Number(n))
-            .filter(Boolean)
-            .sort((a, b) => a - b);
-
-          floorsMap[towerId] = floorNumbers.map((floorNo) => {
-            const units = (floorsObj[floorNo] || []).sort((a, b) =>
-              String(a.number).localeCompare(String(b.number), undefined, {
-                numeric: true,
-              })
-            );
-
-            const allSame =
-              units.length > 0 && units.every((u) => u.type === units[0].type);
-
-            return {
-              floor: floorNo,
-              units,
-              defaultType: allSame ? units[0].type : "1BHK",
-            };
-          });
-        });
-
-        setExistingFloorsByTowerId(floorsMap);
-      } catch (err) {
-        console.error("LOAD FLATS ERROR:", err);
-      }
-    };
-
-    loadExistingFloors();
-  }, [societyId]);
-
-  /* ---------------- GENERATE FLOORS ---------------- */
-  const generateFloors = (floors, unitsPerFloor) => {
-    return Array.from({ length: floors }, (_, i) => {
-      const floorNo = i + 1;
-
-      const units = Array.from({ length: unitsPerFloor }, (_, j) => ({
-        number: `${floorNo}${String(j + 1).padStart(2, "0")}`,
-        type: "1BHK",
-      }));
-
-      return {
-        floor: floorNo,
-        units,
-        unitCount: unitsPerFloor, // ✅ important
-        defaultType: "1BHK",
-      };
-    });
-  };
-
-  /* ---------------- HANDLE CHANGE ---------------- */
-  const handleChange = (index, field, value) => {
-    if (readOnly) return;
-
-    const tower = configs[index];
-   if (tower?.hasExistingUnits) {
-      // Allow editing ONLY via floor-level controls
-      // but block global regeneration
-      if (field === "total_floors" || field === "units_per_floor") {
-        toast.info(
-          `${tower.tower_name}: cannot regenerate. Edit floors individually.`
-        );
-        return;
-      }
-    }
-
-    let clean = value.replace(/\D/g, "");
-
-    if (clean === "") {
-      setFieldError(tower?.tower_id, field, null);
-      setConfigs((prev) =>
-        prev.map((c, i) =>
-          i === index ? { ...c, [field]: "", floorConfigs: [] } : c
-        )
-      );
-      return;
-    }
-
-    if (field === "total_floors") {
-      const numeric = Number(clean);
-      if (numeric > MAX_FLOORS) {
-        notifyLimit(tower.tower_id, tower.tower_name, field, MAX_FLOORS);
-        setFieldError(
-          tower.tower_id,
-          field,
-          `Cannot be greater than ${MAX_FLOORS}`
-        );
-      } else {
-        setFieldError(tower.tower_id, field, null);
-      }
-      clean = Math.min(numeric, MAX_FLOORS).toString();
-    }
-
-    if (field === "units_per_floor") {
-      const numeric = Number(clean);
-      if (numeric > MAX_UNITS) {
-        notifyLimit(tower.tower_id, tower.tower_name, field, MAX_UNITS);
-        setFieldError(
-          tower.tower_id,
-          field,
-          `Cannot be greater than ${MAX_UNITS}`
-        );
-      } else {
-        setFieldError(tower.tower_id, field, null);
-      }
-      clean = Math.min(numeric, MAX_UNITS).toString();
-    }
+  /* ================= UNIT COUNT ================= */
+  const handleUnitCountChange = (tIndex, fIndex, value) => {
+    const count = Math.min(Number(value || 0), MAX_UNITS);
 
     setConfigs((prev) =>
-      prev.map((c, i) => {
-        if (i !== index) return c;
-
-        const updated = { ...c, [field]: clean };
-        const floors = Number(updated.total_floors);
-        const units = Number(updated.units_per_floor);
-
-        if (!floors || !units) {
-          return { ...updated, floorConfigs: [] };
-        }
-
-        if (!c.floorConfigs || c.floorConfigs.length === 0) {
-          return { ...updated, floorConfigs: generateFloors(floors, units) };
-        }
-
-        if (
-          c.floorConfigs.length === floors &&
-          c.floorConfigs[0]?.units?.length === units
-        ) {
-          return updated;
-        }
-
-        return { ...updated, floorConfigs: generateFloors(floors, units) };
-      })
-    );
-  };
-
-  /* ---------------- HANDLE CHANGE FOR THE UNIT COUNT ---------------- */
-
-  const handleUnitCountChange = (towerIndex, floorIndex, value) => {
-    const clean = Math.min(Number(value.replace(/\D/g, "") || 0), MAX_UNITS);
-
-    setConfigs((prev) =>
-      prev.map((tower, i) => {
-        if (i !== towerIndex) return tower;
+      prev.map((t, i) => {
+        if (i !== tIndex) return t;
 
         return {
-          ...tower,
-          floorConfigs: tower.floorConfigs.map((floor, fIdx) => {
-            if (fIdx !== floorIndex) return floor;
+          ...t,
+          floorConfigs: t.floorConfigs.map((f, idx) => {
+            if (idx !== fIndex) return f;
 
-            const oldUnits = floor.units || [];
-            let newUnits = [];
+            const units = [...f.units];
 
-            if (clean > oldUnits.length) {
-              // ✅ ADD units
+            if (count > units.length) {
               const extra = Array.from(
-                { length: clean - oldUnits.length },
-                (_, j) => {
-                  const nextIndex = oldUnits.length + j + 1;
-                  return {
-                    number: `${floor.floor}${String(nextIndex).padStart(2, "0")}`,
-                    type: floor.defaultType || "1BHK",
-                  };
-                }
+                { length: count - units.length },
+                (_, j) => ({
+                  number: `${f.floor}${String(units.length + j + 1).padStart(
+                    2,
+                    "0"
+                  )}`,
+                  type: f.defaultType,
+                })
               );
-              newUnits = [...oldUnits, ...extra];
-            } else {
-              // ✅ REMOVE units
-              newUnits = oldUnits.slice(0, clean);
+              return { ...f, unitCount: count, units: [...units, ...extra] };
             }
 
-            return {
-              ...floor,
-              unitCount: clean,
-              units: newUnits,
-            };
+            return { ...f, unitCount: count, units: units.slice(0, count) };
           }),
         };
       })
     );
   };
 
-  /* ---------------- FLOOR TYPE CHANGE ---------------- */
-  const handleFloorTypeChange = (towerIndex, floorIndex, value) => {
-    const tower = configs[towerIndex];
-    const floorNo = tower?.floorConfigs?.[floorIndex]?.floor;
-    if (
-      readOnly ||
-      (tower?.hasExistingUnits && !isFloorEditable(tower.tower_id, floorNo))
-    )
-      return;
-
+  /* ================= TYPE CHANGE ================= */
+  const handleFloorTypeChange = (tIndex, fIndex, value) => {
     setConfigs((prev) =>
-      prev.map((tower, i) => {
-        if (i !== towerIndex) return tower;
+      prev.map((t, i) => {
+        if (i !== tIndex) return t;
 
         return {
-          ...tower,
-          floorConfigs: tower.floorConfigs.map((floor, fIdx) => {
-            if (fIdx !== floorIndex) return floor;
-
-            return {
-              ...floor,
-              defaultType: value,
-              units: floor.units.map((u) => ({
-                ...u,
-                type: value,
-              })),
-            };
-          }),
+          ...t,
+          floorConfigs: t.floorConfigs.map((f, idx) =>
+            idx === fIndex
+              ? {
+                  ...f,
+                  defaultType: value,
+                  units: f.units.map((u) => ({ ...u, type: value })),
+                }
+              : f
+          ),
         };
       })
     );
   };
 
-  /* ---------------- CHANGE UNIT ---------------- */
-  const handleUnitChange = (towerIndex, floorIndex, unitIndex, value) => {
-    const tower = configs[towerIndex];
-    const floorNo = tower?.floorConfigs?.[floorIndex]?.floor;
-    if (
-      readOnly ||
-      (tower?.hasExistingUnits && !isFloorEditable(tower.tower_id, floorNo))
-    )
-      return;
-
+  const handleUnitChange = (tIndex, fIndex, uIndex, value) => {
     setConfigs((prev) =>
-      prev.map((tower, i) => {
-        if (i !== towerIndex) return tower;
+      prev.map((t, i) => {
+        if (i !== tIndex) return t;
 
         return {
-          ...tower,
-          floorConfigs: tower.floorConfigs.map((floor, fIdx) => {
-            if (fIdx !== floorIndex) return floor;
-
-            return {
-              ...floor,
-              units: floor.units.map((u, uIdx) =>
-                uIdx === unitIndex ? { ...u, type: value } : u
-              ),
-            };
-          }),
+          ...t,
+          floorConfigs: t.floorConfigs.map((f, idx) =>
+            idx === fIndex
+              ? {
+                  ...f,
+                  units: f.units.map((u, ui) =>
+                    ui === uIndex ? { ...u, type: value } : u
+                  ),
+                }
+              : f
+          ),
         };
       })
     );
   };
 
-
-  const handleSaveFloor = async (towerIndex, floorIndex) => {
-  try {
-    const tower = configs[towerIndex];
-    const floor = tower.floorConfigs[floorIndex];
-    const towerId = tower.tower_id;
-    const floorNo = floor.floor;
-
-    const original = existingFloorsByTowerId || {};
-    const originalFloor =
-      (original[towerId] || []).find((f) => f.floor === floorNo) || {
-        units: [],
-      };
-
-    const oldUnits = originalFloor.units || [];
-    const newUnits = floor.units || [];
-
-    const typeUpdates = [];
-    const structureUpdates = [];
-
-    const oldByFlatId = new Map(
-      oldUnits.filter((u) => u.flat_id).map((u) => [u.flat_id, u])
+  const handleTowerConfigChange = (tIndex, key, value) => {
+    setConfigs((prev) =>
+      prev.map((t, i) =>
+        i !== tIndex
+          ? t
+          : {
+              ...t,
+              [key]: value,
+            }
+      )
     );
+  };
 
-    // TYPE UPDATE
-    newUnits.forEach((u) => {
-      if (!u.flat_id) return;
+  const isGenerateValid = (tower) => {
+    const totalFloors = Number(tower.total_floors);
+    const unitsPerFloor = Number(tower.units_per_floor);
+    return (
+      Number.isInteger(totalFloors) &&
+      totalFloors > 0 &&
+      Number.isInteger(unitsPerFloor) &&
+      unitsPerFloor > 0
+    );
+  };
 
-      const prev = oldByFlatId.get(u.flat_id);
-      if (prev && prev.type !== u.type) {
-        typeUpdates.push({
-          flat_id: u.flat_id,
-          unit_type: u.type,
-        });
-      }
-    });
+  const handleGenerateTowerUnits = async (tIndex) => {
+    const tower = configs[tIndex];
+    const totalFloors = Number(tower.total_floors);
+    const unitsPerFloor = Number(tower.units_per_floor);
 
-    // ADD
-    if (newUnits.length > oldUnits.length) {
-      const toAdd = newUnits.slice(oldUnits.length);
-
-      toAdd.forEach((u) => {
-        structureUpdates.push({
-          action: "ADD",
-          tower_id: towerId,
-          floor_number: floorNo,
-          flat_number: u.number,
-          unit_type: u.type,
-        });
-      });
-    }
-
-    // REMOVE (fixed logic)
-    if (newUnits.length < oldUnits.length) {
-      const newFlatIds = new Set(
-        newUnits.map((u) => u.flat_id).filter(Boolean)
-      );
-
-      const toRemove = oldUnits.filter(
-        (u) => u.flat_id && !newFlatIds.has(u.flat_id)
-      );
-
-      toRemove.forEach((u) => {
-        structureUpdates.push({
-          action: "REMOVE",
-          flat_id: u.flat_id,
-        });
-      });
-    }
-
-    // API CALLS
-    if (typeUpdates.length > 0) {
-      await bulkUpdateFlatUnitTypes(typeUpdates);
-    }
-
-    if (structureUpdates.length > 0) {
-      await updateFlatStructure(structureUpdates);
-    }
-
-    toast.success(`Floor ${floorNo} updated`);
-
-    // disable edit mode
-    toggleFloorEdit(towerId, floorNo);
-
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to update floor");
-  }
-};
-  /* ---------------- SUBMIT ---------------- */
-  // const handleSubmit = async () => {
-  //   if (Object.keys(errors || {}).length > 0) {
-  //     toast.error("Please fix validation errors before generating units.");
-  //     return;
-  //   }
-
-  //   setLoading(true);
-  //   try {
-  //     // 1) Update unit types for edited existing floors
-  //     const typeUpdates = [];
-  //     const original = existingFloorsByTowerId || {};
-
-  //     configs.forEach((tower) => {
-  //       if (!tower?.hasExistingUnits) return;
-  //       const towerId = tower.tower_id;
-
-  //       (tower.floorConfigs || []).forEach((floor) => {
-  //         const floorNo = floor.floor;
-  //         if (!isFloorEditable(towerId, floorNo)) return;
-
-  //         const originalFloor =
-  //           (original[towerId] || []).find((f) => f.floor === floorNo) || null;
-  //         const originalByFlatId = new Map(
-  //           (originalFloor?.units || [])
-  //             .filter((u) => u?.flat_id)
-  //             .map((u) => [u.flat_id, u.type])
-  //         );
-
-  //         (floor.units || []).forEach((u) => {
-  //           if (!u?.flat_id) return;
-  //           const prevType = originalByFlatId.get(u.flat_id);
-  //           if (!prevType) return;
-  //           if (prevType !== u.type) {
-  //             typeUpdates.push({ flat_id: u.flat_id, unit_type: u.type });
-  //           }
-  //         });
-  //       });
-  //     });
-
-  //     if (typeUpdates.length > 0) {
-  //       await bulkUpdateFlatUnitTypes(typeUpdates);
-  //     }
-
-  //     const payload = configs
-  //       .filter((c) => !c.hasExistingUnits)
-  //       .filter((c) => (c.floorConfigs || []).length > 0)
-  //       .map((c) => ({
-  //         tower_id: c.tower_id,
-  //         floors: c.floorConfigs,
-  //       }));
-
-  //     if (payload.length === 0 && typeUpdates.length === 0) {
-  //       toast.info("No new units to generate (towers may already have units).");
-  //       return;
-  //     }
-
-  //     const skippedCount = configs.filter((c) => c.hasExistingUnits).length;
-  //     if (skippedCount > 0) {
-  //       toast.info(
-  //         `Skipped ${skippedCount} tower(s) because units already exist.`
-  //       );
-  //     }
-
-  //     if (payload.length > 0) {
-  //       await generateUnits({ configs: payload });
-  //     }
-  //     onSuccess?.();
-  //   } catch (err) {
-  //     console.error(err);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-const handleSubmit = async () => {
-  if (Object.keys(errors || {}).length > 0) {
-    toast.error("Please fix validation errors before saving.");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const typeUpdates = [];
-    const structureUpdates = [];
-    const original = existingFloorsByTowerId || {};
-
-    configs.forEach((tower) => {
-      const towerId = tower.tower_id;
-
-      (tower.floorConfigs || []).forEach((floor) => {
-        const floorNo = floor.floor;
-
-        // 🔒 Only editable floors
-        if (tower.hasExistingUnits && !isFloorEditable(towerId, floorNo)) {
-          return;
-        }
-
-        const originalFloor =
-          (original[towerId] || []).find((f) => f.floor === floorNo) || {
-            units: [],
-          };
-
-        const oldUnits = originalFloor.units || [];
-        const newUnits = floor.units || [];
-
-        const oldByFlatId = new Map(
-          oldUnits
-            .filter((u) => u.flat_id)
-            .map((u) => [u.flat_id, u])
-        );
-
-        // ================= TYPE UPDATE =================
-        newUnits.forEach((u) => {
-          if (!u.flat_id) return;
-
-          const prev = oldByFlatId.get(u.flat_id);
-
-          if (prev && prev.type !== u.type) {
-            typeUpdates.push({
-              flat_id: u.flat_id,
-              unit_type: u.type,
-            });
-          }
-        });
-
-        // ================= ADD UNITS =================
-        if (newUnits.length > oldUnits.length) {
-          const toAdd = newUnits.slice(oldUnits.length);
-
-          toAdd.forEach((u) => {
-            structureUpdates.push({
-              action: "ADD",
-              tower_id: towerId,
-              floor_number: floorNo,
-              flat_number: u.number,
-              unit_type: u.type,
-            });
-          });
-        }
-
-        // ================= REMOVE UNITS =================
-        if (newUnits.length < oldUnits.length) {
-        const newFlatIds = new Set(
-          newUnits.map((u) => u.flat_id).filter(Boolean)
-        );
-
-        const toRemove = oldUnits.filter(
-          (u) => u.flat_id && !newFlatIds.has(u.flat_id)
-        );
-
-        toRemove.forEach((u) => {
-          structureUpdates.push({
-            action: "REMOVE",
-            flat_id: u.flat_id,
-          });
-        });
-      }
-      });
-    });
-
-    // ================= API CALLS =================
-
-    if (typeUpdates.length > 0) {
-      await bulkUpdateFlatUnitTypes(typeUpdates);
-    }
-
-    if (structureUpdates.length > 0) {
-      await updateFlatStructure(structureUpdates);
-    }
-
-    // ================= NEW TOWERS =================
-    const payload = configs
-      .filter((c) => !c.hasExistingUnits)
-      .filter((c) => (c.floorConfigs || []).length > 0)
-      .map((c) => ({
-        tower_id: c.tower_id,
-        floors: c.floorConfigs,
-      }));
-
-    if (payload.length > 0) {
-      await generateUnits({ configs: payload });
-    }
-
-    // ================= NO CHANGE =================
-    if (
-      payload.length === 0 &&
-      typeUpdates.length === 0 &&
-      structureUpdates.length === 0
-    ) {
-      toast.info("No changes detected.");
+    if (!isGenerateValid(tower)) {
+      toast.error("Enter valid total floors and units per floor");
       return;
     }
 
-    toast.success("Units updated successfully");
-    onSuccess?.();
+    try {
+      setLoading(true);
+      await generateUnits({
+        configs: [
+          {
+            tower_id: tower.tower_id,
+            total_floors: totalFloors,
+            units_per_floor: unitsPerFloor,
+          },
+        ],
+      });
 
-  } catch (err) {
-    console.error(err);
-    toast.error("Update failed");
-  } finally {
-    setLoading(false);
-  }
-};
-  /* ---------------- UI ---------------- */
+      toast.success("Units generated successfully");
+      await loadConfigs();
+      onSuccess?.();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ================= SAVE ================= */
+  const handleSaveFloor = async (tIndex, fIndex) => {
+    try {
+      const tower = configs[tIndex];
+      const floor = tower.floorConfigs[fIndex];
+
+      await updateFlatStructure({
+        tower_id: tower.tower_id,
+        floor_number: floor.floor,
+        units: floor.units,
+      });
+
+      toast.success(`Floor ${floor.floor} updated`);
+
+      toggleFloorEdit(tower.tower_id, floor.floor, tIndex, fIndex);
+      await loadConfigs();
+      onSuccess?.();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to save floor");
+    }
+  };
+
+  /* ================= UI ================= */
   return (
     <div className="flex flex-col gap-4">
-      {configs.map((c, i) => (
-        <div key={c.tower_id || i} className="border p-4 rounded bg-white">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="font-semibold">{c.tower_name}</h4>
-            {c.hasExistingUnits && (
-              <span className="text-xs text-gray-600">
-                Units already exist ({c.existingUnitsCount})
-              </span>
-            )}
-          </div>
 
-          <div className="flex gap-3">
-            <Input
-              placeholder="Total Floors"
-              value={c.total_floors}
-              maxLength={3}
-              onChange={(e) =>
-                handleChange(i, "total_floors", e.target.value)
-              }
-              disabled={readOnly || c.hasExistingUnits}
-              error={errors?.[c.tower_id]?.total_floors}
-              containerClassName="w-1/2"
-            />
-
-            <Input
-              placeholder="Units per Floor"
-              maxLength={2}
-              value={c.units_per_floor}
-              onChange={(e) =>
-                handleChange(i, "units_per_floor", e.target.value)
-              }
-              disabled={readOnly || c.hasExistingUnits}
-              error={errors?.[c.tower_id]?.units_per_floor}
-              containerClassName="w-1/2"
-            />
-          </div>
-
-          {c.floorConfigs.length > 0 && (
-            <div className="mt-4 border-t pt-3">
-              {c.floorConfigs.map((floor, fIndex) => (
-                <div
-  key={fIndex}
-  className="mb-4 border rounded-lg bg-gray-100 p-4"
->
-  {/* HEADER */}
-  <div className="flex items-center justify-between mb-3">
-    <p className="font-semibold text-sm">
-      Floor {floor.floor}
-    </p>
-
-    {c.hasExistingUnits && !readOnly && (
-      <button
-        type="button"
-        onClick={() =>
-          toggleFloorEdit(c.tower_id, floor.floor, i, fIndex)
-        }
-        className="p-1.5 rounded hover:bg-gray-200 transition"
-      >
-        {isFloorEditable(c.tower_id, floor.floor) ? (
-          <X className="w-4 h-4 text-red-500" />
-        ) : (
-          <Pencil className="w-4 h-4 text-gray-500" />
-        )}
-      </button>
-    )}
-  </div>
-
-  {/* CONTROLS */}
-  <div className="flex items-center gap-6 mb-3">
-    {/* Default */}
-    <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-600">Default</span>
-      <Dropdown
-        value={floor.defaultType}
-        onChange={(value) =>
-          handleFloorTypeChange(i, fIndex, value)
-        }
-        options={UNIT_OPTIONS}
-        disabled={
-          readOnly ||
-          (c.hasExistingUnits &&
-            !isFloorEditable(c.tower_id, floor.floor))
-        }
-        className="w-[90px]"
-      />
-    </div>
-
-    {/* Units */}
-    <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-600">Units</span>
-      <Input
-        type="number"
-        value={floor.unitCount ?? floor.units.length}
-        onChange={(e) => {
-          let val = e.target.value.replace(/\D/g, "");
-          if (Number(val) > MAX_UNITS) val = MAX_UNITS;
-          handleUnitCountChange(i, fIndex, val);
-        }}
-        className="w-[100px] text-center"
-        disabled={
-          readOnly ||
-          (c.hasExistingUnits &&
-            !isFloorEditable(c.tower_id, floor.floor))
-        }
-      />
-    </div>
-  </div>
-
-  <hr className="mb-3 border-gray-200" />
-
-  {/* UNITS GRID */}
-  <div className="grid grid-cols-4 gap-3">
-    {floor.units.map((unit, uIndex) => (
-      <div
-        key={uIndex}
-        className="flex items-center justify-between border rounded-md bg-white shadow-sm"
-      >
-        <span className="text-sm text-gray-700 p-2">
-          {unit.number}
-        </span>
-
-        <Dropdown
-          value={unit.type}
-          onChange={(value) =>
-            handleUnitChange(i, fIndex, uIndex, value)
-          }
-          options={UNIT_OPTIONS}
-          disabled={
-            readOnly ||
-            (c.hasExistingUnits &&
-              !isFloorEditable(c.tower_id, floor.floor))
-          }
-          className="text-xs border-0 bg-transparent"
-        />
+      {/* TABS */}
+      <div className="flex gap-2 border-b pb-2">
+        {configs.map((t) => (
+          <button
+            key={t.tower_id}
+            onClick={() => setActiveTowerId(t.tower_id)}
+            className={`px-4 py-2 rounded ${
+              activeTowerId === t.tower_id
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200"
+            }`}
+          >
+            {t.tower_name}
+          </button>
+        ))}
       </div>
-    ))}
-  </div>
 
-  {/* SAVE BUTTON */}
-  {isFloorEditable(c.tower_id, floor.floor) && (
-    <div className="flex justify-end mt-4">
-      <Button
-        size="sm"
-        onClick={() => handleSaveFloor(i, fIndex)}
-      >
-        Save
-      </Button>
-    </div>
-  )}
-</div>
-              ))}
+      {/* ACTIVE */}
+      {configs
+        .filter((c) => c.tower_id === activeTowerId)
+        .map((c) => {
+          const configIndex = configs.findIndex(
+            (t) => t.tower_id === c.tower_id
+          );
+
+          return (
+            <div key={c.tower_id} className="border p-4 rounded bg-white">
+
+              {/* FLOORS */}
+              {c.floorConfigs.length > 0 ? (
+                <div>
+                  {c.floorConfigs.map((floor, fIndex) => {
+                    const expanded = isExpanded(c.tower_id, floor.floor);
+                    const unitSummary = floor.units.reduce((acc, u) => {
+                      acc[u.type] = (acc[u.type] || 0) + 1;
+                      return acc;
+                    }, {});
+                    const summaryText = Object.entries(unitSummary)
+                      .map(([type, count]) => `${count} ${type}`)
+                      .join(", ");
+
+                    return (
+                      <div key={fIndex} className="bg-gray-100 p-4 rounded mb-3">
+                        {/* SUMMARY */}
+                        <div
+                          className="flex justify-between items-center cursor-pointer"
+                          onClick={() => toggleFloorExpand(c.tower_id, floor.floor)}
+                        >
+                          <div>
+                            <b>Floor {floor.floor}</b> - {floor.units.length} units ({summaryText})
+                          </div>
+                          <span>{expanded ? "▼" : "▶"}</span>
+                        </div>
+
+                        {/* DETAILS */}
+                        {expanded && (
+                          <div className="mt-4">
+                            <div className="flex justify-between items-center mb-2">
+                              <span></span>
+                              <button
+                                onClick={() =>
+                                  toggleFloorEdit(c.tower_id, floor.floor, configIndex, fIndex)
+                                }
+                              >
+                                {isEditable(c.tower_id, floor.floor) ? <X /> : <Pencil />}
+                              </button>
+                            </div>
+                            <div className="flex gap-3 mb-2">
+                              <Dropdown
+                                value={floor.defaultType}
+                                options={UNIT_OPTIONS}
+                                disabled={!isEditable(c.tower_id, floor.floor)}
+                                onChange={(v) =>
+                                  handleFloorTypeChange(configIndex, fIndex, v)
+                                }
+                              />
+
+                              <Input
+                                value={floor.unitCount}
+                                disabled={!isEditable(c.tower_id, floor.floor)}
+                                onChange={(e) =>
+                                  handleUnitCountChange(configIndex, fIndex, e.target.value)
+                                }
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-4 gap-2">
+                              {floor.units.map((u, uIndex) => (
+                                <div key={uIndex} className="border p-2 rounded bg-white flex justify-between">
+                                  <span>{u.number}</span>
+                                  <Dropdown
+                                    value={u.type}
+                                    options={UNIT_OPTIONS}
+                                    disabled={!isEditable(c.tower_id, floor.floor)}
+                                    onChange={(v) =>
+                                      handleUnitChange(configIndex, fIndex, uIndex, v)
+                                    }
+                                  />
+                                </div>
+                              ))}
+                            </div>
+
+                            {isEditable(c.tower_id, floor.floor) && (
+                              <div className="flex justify-end mt-3">
+                                <Button onClick={() => handleSaveFloor(configIndex, fIndex)}>
+                                  Save
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* ADD FLOOR BUTTON */}
+                  {!readOnly && (
+                    <div className="flex justify-center mb-4">
+                      <Button onClick={() => addFloor(configIndex)}>
+                        + Add Floor
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-gray-100 p-4 rounded mb-3">
+                  <div className="flex justify-between mb-4">
+                    <div>
+                      <b>No units found for this tower yet.</b>
+                      <p className="text-sm text-gray-600">
+                        Enter tower configuration and generate units manually.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        Total Floors
+                      </label>
+                      <Input
+                        value={c.total_floors}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          handleTowerConfigChange(configIndex, "total_floors", e.target.value)
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        Units per Floor
+                      </label>
+                      <Input
+                        value={c.units_per_floor}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          handleTowerConfigChange(configIndex, "units_per_floor", e.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      disabled={
+                        readOnly || !isGenerateValid(c)
+                      }
+                      onClick={() => handleGenerateTowerUnits(configIndex)}
+                    >
+                      Generate Units
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-
-        </div>
-      ))}
-
-      <div className="flex gap-2">
-        {!!onBack && (
-          <Button variant="outline" onClick={onBack}>
-            Back
-          </Button>
-        )}
-
-        <Button onClick={handleSubmit} loading={loading}>
-          Generate Units
-        </Button>
-      </div>
+          );
+        })}
     </div>
   );
 };

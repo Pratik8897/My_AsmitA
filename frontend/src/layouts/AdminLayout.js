@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { menuItems } from "../config/menu";
 import {
@@ -12,10 +12,12 @@ import { clearAuthSession, getStoredAuthUser } from "../services/authService";
 const AdminLayout = ({ title, children }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState({});
   const [settings, setSettings] = useState(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [authUser, setAuthUser] = useState(getStoredAuthUser());
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+  const location = useLocation();
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -38,9 +40,39 @@ const AdminLayout = ({ title, children }) => {
     };
   }, []);
 
-  const visibleMenuItems = settingsLoading
-    ? []
-    : menuItems.filter((item) => canAccessItem(item, settings || defaultAppSettings));
+  const buildVisibleMenu = (items) => {
+    const visible = [];
+
+    for (const item of items) {
+      const children = Array.isArray(item.children)
+        ? buildVisibleMenu(item.children)
+        : null;
+
+      const canSeeSelf = canAccessItem(item, settings || defaultAppSettings);
+      const canSeeChildren = children && children.length > 0;
+
+      if (canSeeSelf || canSeeChildren) {
+        visible.push({ ...item, children: children || undefined });
+      }
+    }
+
+    return visible;
+  };
+
+  const visibleMenuItems = settingsLoading ? [] : buildVisibleMenu(menuItems);
+
+  const isGroupActive = (item) => {
+    if (!item?.children?.length) return false;
+    return item.children.some(
+      (child) =>
+        child.path === location.pathname ||
+        (child.children?.length ? isGroupActive(child) : false)
+    );
+  };
+
+  const toggleGroup = (label) => {
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
 
   const handleLogout = () => {
     clearAuthSession();
@@ -80,6 +112,61 @@ const AdminLayout = ({ title, children }) => {
           ) : (
             visibleMenuItems.map((item) => {
               const Icon = item.icon;
+
+              const groupActive = isGroupActive(item);
+              const groupOpen =
+                openGroups[item.label] ?? (groupActive ? true : false);
+
+              if (item.children?.length && !isCollapsed) {
+                return (
+                  <div key={item.label}>
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(item.label)}
+                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-all ${
+                        groupActive
+                          ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
+                          : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <span className="flex items-center gap-3">
+                        {Icon && <Icon className="h-5 w-5 min-w-[20px]" />}
+                        <span>{item.label}</span>
+                      </span>
+                      <span className="text-xs opacity-70">
+                        {groupOpen ? "▾" : "▸"}
+                      </span>
+                    </button>
+
+                    {groupOpen && (
+                      <div className="mt-1 flex flex-col gap-1 pl-6">
+                        {item.children.map((child) => {
+                          const ChildIcon = child.icon;
+                          return (
+                            <NavLink
+                              key={child.path}
+                              to={child.path}
+                              onClick={() => setMobileOpen(false)}
+                              className={({ isActive }) =>
+                                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all ${
+                                  isActive
+                                    ? "bg-blue-600 text-white shadow"
+                                    : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                }`
+                              }
+                            >
+                              {ChildIcon && (
+                                <ChildIcon className="h-4 w-4 min-w-[16px]" />
+                              )}
+                              <span>{child.label}</span>
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
 
               return (
                 <NavLink

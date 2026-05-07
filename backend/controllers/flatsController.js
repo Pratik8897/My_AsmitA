@@ -194,34 +194,92 @@ exports.generateFlats = async (req, res) => {
 };
 
 exports.updateFlatStructure = async (req, res) => {
-  const updates = Array.isArray(req.body) ? req.body : [];
-  if (!updates.length) {
+  const conn = await db.getConnection();
+  let payload = req.body;
+
+  if (!payload || (Array.isArray(payload) && payload.length === 0)) {
     return res.status(400).json({ error: "No updates provided" });
   }
-
-  const conn = await db.getConnection();
 
   try {
     await conn.beginTransaction();
 
+    // Support full floor payload from the frontend
+    if (!Array.isArray(payload) && payload.tower_id && payload.floor_number) {
+      const towerId = Number(payload.tower_id);
+      const floorNumber = Number(payload.floor_number);
+      const units = Array.isArray(payload.units) ? payload.units : [];
+
+      if (!towerId || !floorNumber) {
+        return res.status(400).json({ error: "tower_id and floor_number are required" });
+      }
+
+      let [floorRows] = await conn.query(
+        "SELECT floor_id FROM floors WHERE tower_id = ? AND floor_number = ?",
+        [towerId, floorNumber]
+      );
+
+      let floorId;
+      if (!floorRows.length) {
+        const [insertRes] = await conn.query(
+          "INSERT INTO floors (tower_id, floor_number) VALUES (?, ?)",
+          [towerId, floorNumber]
+        );
+        floorId = insertRes.insertId;
+      } else {
+        floorId = floorRows[0].floor_id;
+      }
+
+      const [existingFlats] = await conn.query(
+        "SELECT flat_id, flat_number, unit_type, status FROM flats WHERE floor_id = ?",
+        [floorId]
+      );
+
+      const existingByNumber = new Map(
+        existingFlats.map((flat) => [flat.flat_number, flat])
+      );
+      const desiredNumbers = new Set();
+
+      for (const unit of units) {
+        const flatNumber = String(unit.number || unit.flat_number || "").trim();
+        if (!flatNumber) continue;
+
+        desiredNumbers.add(flatNumber);
+        const unitType = unit.unit_type || unit.type || "1BHK";
+
+        const existing = existingByNumber.get(flatNumber);
+        if (existing) {
+          if (existing.status !== "available" || existing.unit_type !== unitType) {
+            await conn.query(
+              "UPDATE flats SET status = 'available', unit_type = ? WHERE flat_id = ?",
+              [unitType, existing.flat_id]
+            );
+          }
+        } else {
+          await conn.query(
+            `INSERT INTO flats (floor_id, flat_number, unit_type, status)
+             VALUES (?, ?, ?, 'available')`,
+            [floorId, flatNumber, unitType]
+          );
+        }
+      }
+
+      for (const existing of existingFlats) {
+        if (!desiredNumbers.has(existing.flat_number)) {
+          await conn.query(
+            "UPDATE flats SET status = 'inactive' WHERE flat_id = ?",
+            [existing.flat_id]
+          );
+        }
+      }
+
+      await conn.commit();
+      return res.json({ success: true });
+    }
+
+    const updates = Array.isArray(payload) ? payload : [];
+
     for (const u of updates) {
-
-      // ---------------- ADD ----------------
-      // if (u.action === "ADD") {
-      //   const [floor] = await conn.query(
-      //     "SELECT floor_id FROM floors WHERE tower_id = ? AND floor_number = ?",
-      //     [u.tower_id, u.floor_number]
-      //   );
-
-      //   if (!floor.length) continue;
-
-      //   await conn.query(
-      //     `INSERT INTO flats 
-      //      (floor_id, flat_number, unit_type, status)
-      //      VALUES (?, ?, ?, 'available')`,
-      //     [floor[0].floor_id, u.flat_number, u.unit_type || "1BHK"]
-      //   );
-      // }
       if (u.action === "ADD") {
         const [floor] = await conn.query(
           "SELECT floor_id FROM floors WHERE tower_id = ? AND floor_number = ?",
@@ -232,32 +290,29 @@ exports.updateFlatStructure = async (req, res) => {
 
         const floorId = floor[0].floor_id;
 
-        // 🔥 CHECK EXISTING (inactive)
         const [existing] = await conn.query(
           `SELECT flat_id, status FROM flats 
-          WHERE floor_id = ? AND flat_number = ?`,
+           WHERE floor_id = ? AND flat_number = ?`,
           [floorId, u.flat_number]
         );
 
         if (existing.length > 0) {
-          // ✅ RE-ACTIVATE instead of insert
           await conn.query(
             `UPDATE flats 
-            SET status = 'available', unit_type = ? 
-            WHERE flat_id = ?`,
+             SET status = 'available', unit_type = ? 
+             WHERE flat_id = ?`,
             [u.unit_type || "1BHK", existing[0].flat_id]
           );
         } else {
-          // ✅ INSERT only if not exists
           await conn.query(
             `INSERT INTO flats 
-            (floor_id, flat_number, unit_type, status)
-            VALUES (?, ?, ?, 'available')`,
+             (floor_id, flat_number, unit_type, status)
+             VALUES (?, ?, ?, 'available')`,
             [floorId, u.flat_number, u.unit_type || "1BHK"]
           );
         }
       }
-      // ---------------- REMOVE ----------------
+
       if (u.action === "REMOVE") {
         await conn.query(
           "UPDATE flats SET status = 'inactive' WHERE flat_id = ?",
@@ -268,12 +323,10 @@ exports.updateFlatStructure = async (req, res) => {
 
     await conn.commit();
     res.json({ success: true });
-
   } catch (err) {
     await conn.rollback();
     console.error("UPDATE STRUCTURE ERROR:", err);
     res.status(500).json({ error: err.message });
-
   } finally {
     conn.release();
   }

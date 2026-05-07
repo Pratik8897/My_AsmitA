@@ -31,28 +31,44 @@ export const menuItems = [
   },
 
   {
-    label: "Society Management",
+    label: "Society",
     path: "/society-management",
     icon: BuildingOfficeIcon,
-    roles: ["admin", "super-admin", "society-admin"],
-    permission: "canManageSocieties",
-  },
-
-
-
-  {
-    label: "Tower Management",
-    path: "/tower-management",
-    icon: BuildingLibraryIcon,
-    roles: ["admin", "super-admin", "society-admin"],
-  },
-
-
-  {
-    label: "Unit Management",
-    path: "/unit-management",
-    icon: RectangleGroupIcon,
-    roles: ["admin", "super-admin", "society-admin"],
+    roles: ["admin", "super-admin", "society-admin", "society-manager"],
+    children: [
+      {
+        label: "Societies",
+        path: "/society-management",
+        icon: BuildingOfficeIcon,
+        roles: ["admin", "super-admin", "society-admin"],
+        permission: "canManageSocieties",
+      },
+      {
+        label: "Towers",
+        path: "/tower-management",
+        icon: BuildingLibraryIcon,
+        roles: ["admin", "super-admin", "society-admin"],
+      },
+      {
+        label: "Units",
+        path: "/unit-management",
+        icon: RectangleGroupIcon,
+        roles: ["admin", "super-admin", "society-admin"],
+      },
+      {
+        label: "Floor Summary",
+        path: "/floor-summary",
+        icon: Squares2X2Icon,
+        roles: ["admin", "super-admin", "society-admin", "society-manager"],
+      },
+      {
+        label: "Society Admins",
+        path: "/society-admin",
+        icon: UserCircleIcon,
+        roles: ["admin", "super-admin", "society-admin"],
+        permission: "canManageUsers",
+      },
+    ],
   },
 
   {
@@ -76,12 +92,7 @@ export const menuItems = [
     roles: ["admin", "super-admin", "society-admin", "society-manager"],
   },
 
-  {
-    label: "Floor Summary",
-    path: "/floor-summary",
-    icon: Squares2X2Icon,
-    roles: ["admin", "super-admin", "society-admin", "society-manager"],
-  },
+
 
   {
     label: "Amenities",
@@ -129,12 +140,5 @@ export const menuItems = [
     path: "/settings",
     icon: Cog6ToothIcon,
     roles: ["admin", "super-admin"],
-  },
-    {
-    label: "Society Admin",
-    path: "/society-admin",
-    icon: UserCircleIcon,
-    roles: ["admin", "super-admin", "society-admin"],
-    permission: "canManageUsers",
   },
 ];

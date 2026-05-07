@@ -1,0 +1,5 @@
+tower_name,floor_number,flat_number,unit_type,merged_from
+A,1,101,1BHK,101+102
+A,1,102,2BHK,101+102
+A,1,101+102,Jodi,101+102
+A,2,201,1BHK,

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import AdminLayout from "../../layouts/AdminLayout";
-import DataTableLayout from "../../layouts/DataTableLayout";
-import DataTable from "../../components/common/DataTable";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import UnitForm from "../../components/societies/UnitForm";
 import { toast } from "react-toastify";
 import Spinner from "../../components/ui/Spinner";
+import { mergeUnits, unmergeUnits } from "../../services/unitService";
+import BulkImport from "../../components/BulkImport";
+
 
 import {
   getTowersBySociety,
@@ -18,107 +19,116 @@ import {
   getFlatsBySociety,
   getFlatById,
 } from "../../services/flatsService";
-import { mergeUnits, unmergeUnits } from "../../services/unitService";
+
 
 const UnitManagement = () => {
   const [societies, setSocieties] = useState([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedSocietyId = searchParams.get("societyId") || "";
+
   const [towers, setTowers] = useState([]);
   const [flats, setFlats] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+
+  const [activeTowerId, setActiveTowerId] = useState(null);
+  const [openFloor, setOpenFloor] = useState(null);
+
+  const [search, setSearch] = useState("");
 
   const [selectedFlat, setSelectedFlat] = useState(null);
   const [flatModalOpen, setFlatModalOpen] = useState(false);
 
   const [mergeFloorId, setMergeFloorId] = useState(null);
-  const [mergeSelected, setMergeSelected] = useState(() => new Set());
+  const [mergeSelected, setMergeSelected] = useState(new Set());
 
-  // ================= Handle Flat Click =================
-  const handleOpenFlat = async (flat) => {
-    setFlatModalOpen(true);
-    setSelectedFlat(null);
+  const [importOpen, setImportOpen] = useState(false);
 
-    try {
-      const data = await getFlatById(flat.flat_id);
-      setSelectedFlat(data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // ================= Fetch Societies =================
+  // ================= FETCH =================
   const fetchSocieties = useCallback(async () => {
-    try {
-      const data = await getSocieties();
-      setSocieties(data || []);
-      if ((!selectedSocietyId || selectedSocietyId === "null") && data?.length) {
-        setSearchParams({ societyId: String(data[0].society_id) });
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }, [selectedSocietyId, setSearchParams]);
+    const data = await getSocieties();
+    setSocieties(data || []);
 
-  // ================= Fetch Towers + Flats =================
+    if ((!selectedSocietyId || selectedSocietyId === "null") && data?.length) {
+      setSearchParams({ societyId: String(data[0].society_id) });
+    }
+  }, [selectedSocietyId]);
+
   const fetchData = useCallback(async () => {
     if (!selectedSocietyId) return;
 
-    try {
-      setLoading(true);
+    setLoading(true);
 
-      const [towerData, flatData] = await Promise.all([
-        getTowersBySociety(selectedSocietyId),
-        getFlatsBySociety(selectedSocietyId),
-      ]);
+    const [towerData, flatData] = await Promise.all([
+      getTowersBySociety(selectedSocietyId),
+      getFlatsBySociety(selectedSocietyId),
+    ]);
 
-      setTowers(towerData || []);
-      setFlats(flatData || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    setTowers(towerData || []);
+    setFlats(flatData || []);
+
+    if (towerData?.length) {
+      setActiveTowerId(towerData[0].tower_id);
     }
+
+    setLoading(false);
   }, [selectedSocietyId]);
 
   useEffect(() => {
     fetchSocieties();
-  }, [fetchSocieties]);
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [selectedSocietyId]);
 
-  const handleSocietyChange = (e) => {
-    setSearchParams({ societyId: e.target.value });
-    setMergeFloorId(null);
-    setMergeSelected(new Set());
-  };
+  // ================= FILTER =================
+  const filteredFlats = useMemo(() => {
+    return flats
+      .filter((f) => f.tower_id === activeTowerId)
+      .filter((f) => {
+        const q = search.toLowerCase();
+        return (
+          f.flat_number?.toString().includes(q) ||
+          f.unit_type?.toLowerCase().includes(q) ||
+          String(f.floor_number).includes(q)
+        );
+      });
+  }, [flats, activeTowerId, search]);
 
-  const selectedSocietyName = useMemo(() => {
-    const match = societies.find((s) => String(s.society_id) === String(selectedSocietyId));
-    return match?.society_name || "";
-  }, [societies, selectedSocietyId]);
+  // ================= GROUP =================
+  const groupedFloors = useMemo(() => {
+    const map = {};
 
-  const selectedUnits = useMemo(() => {
-    const selected = flats.filter((f) => mergeSelected.has(f.flat_id));
-    return selected.sort((a, b) =>
-      String(a.flat_number).localeCompare(String(b.flat_number), undefined, {
-        numeric: true,
-      })
-    );
-  }, [flats, mergeSelected]);
+    filteredFlats.forEach((f) => {
+      const floor = Number(f.floor_number);
+      if (!map[floor]) map[floor] = [];
+      map[floor].push(f);
+    });
+
+    return map;
+  }, [filteredFlats]);
+
+  const floors = Object.keys(groupedFloors).sort(
+    (a, b) => Number(a) - Number(b)
+  );
+
+  // ================= HELPERS =================
+  const selectedUnits = flats.filter((f) =>
+    mergeSelected.has(f.flat_id)
+  );
 
   const toggleMergeSelection = (flat) => {
-    if (flat?.unit_type === "Jodi") return;
+    if (flat.unit_type === "Jodi") return;
 
-    if (flat?.is_merged) {
-      toast.info("This unit is already part of a merged (Jodi) unit");
+    if (flat.is_merged) {
+      toast.info("Already merged");
       return;
     }
 
     if (!mergeFloorId) setMergeFloorId(flat.floor_id);
+
     if (mergeFloorId && mergeFloorId !== flat.floor_id) {
       setMergeFloorId(flat.floor_id);
       setMergeSelected(new Set([flat.flat_id]));
@@ -127,8 +137,9 @@ const UnitManagement = () => {
 
     setMergeSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(flat.flat_id)) next.delete(flat.flat_id);
-      else next.add(flat.flat_id);
+      next.has(flat.flat_id)
+        ? next.delete(flat.flat_id)
+        : next.add(flat.flat_id);
       return next;
     });
   };
@@ -137,277 +148,254 @@ const UnitManagement = () => {
     const ids = Array.from(mergeSelected);
     if (ids.length < 2) return;
 
-    if (!window.confirm(`Merge ${ids.length} units into a Jodi unit?`)) return;
+    await mergeUnits({ flat_ids: ids });
 
-    try {
-      await mergeUnits({ flat_ids: ids });
-      setMergeSelected(new Set());
-      setMergeFloorId(null);
-      fetchData();
-    } catch (err) {
-      console.error(err);
-    }
+    setMergeSelected(new Set());
+    setMergeFloorId(null);
+    fetchData();
   };
 
-  // ================= Group Flats by Floor =================
-  const towerWithUnits = towers.map((tower) => {
-    const towerFlats = flats.filter(
-      (f) => f.tower_id === tower.tower_id
-    );
+  const handleOpenFlat = async (flat) => {
+    setFlatModalOpen(true);
+    const data = await getFlatById(flat.flat_id);
+    setSelectedFlat(data);
+  };
 
-    const grouped = {};
-
-    towerFlats.forEach((f) => {
-      const floor = Number(f.floor_number);
-
-      if (!grouped[floor]) grouped[floor] = [];
-      grouped[floor].push(f);
-    });
-
-    Object.keys(grouped).forEach((floor) => {
-      grouped[floor].sort((a, b) =>
-        String(a.flat_number).localeCompare(String(b.flat_number), undefined, {
-          numeric: true,
-        })
-      );
-    });
-
-    return {
-      ...tower,
-      unitsByFloor: grouped,
-    };
-  });
-
-  // ================= Table Columns =================
-  const columns = [
-    {
-      header: "Sr No",
-      render: (_, i) => i + 1,
-    },
-    {
-      header: "Tower",
-      accessor: "tower_name",
-    },
-    {
-      header: "Units",
-      render: (row) => {
-        const floors = Object.keys(row.unitsByFloor || {}).sort(
-          (a, b) => Number(a) - Number(b)
-        );
-
-        return (
-          <div className="flex flex-col gap-2 max-w-[400px]">
-            {floors.length ? (
-              floors.map((floorId) => (
-                <div key={floorId}>
-                  <div className="text-xs font-semibold text-gray-500 mb-1">
-                    Floor {floorId}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {row.unitsByFloor[floorId].map((u, i) => (
-                      <div
-                        key={i}
-                        onClick={() => handleOpenFlat(u)}
-                        title="Click to view details"
-                        className={`h-14 min-w-[96px] relative cursor-pointer px-3 py-2 text-xs rounded-md hover:opacity-80 border ${
-                          u.unit_type === "Jodi"
-                            ? "bg-red-100 text-red-700 border-red-200"
-                            : u.is_merged
-                              ? "bg-gray-100 text-gray-500 border-gray-200"
-                              : "bg-blue-100 text-blue-700 border-blue-200"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1 font-semibold">
-                          <span>{u.flat_number}</span>
-                          <span className="text-[10px] opacity-80 font-medium">
-                            ({u.unit_type})
-                          </span>
-                        </div>
-
-                        {/* Merge selector (separate action so single click keeps opening details) */}
-                        {u.unit_type !== "Jodi" && !u.is_merged && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleMergeSelection(u);
-                            }}
-                            title="Select for merge"
-                            className={`absolute -bottom-2 -right-2 w-6 h-6 rounded-full border text-[12px] flex items-center justify-center bg-white shadow-sm ${
-                              mergeSelected.has(u.flat_id)
-                                ? "border-blue-500 text-blue-700"
-                                : "border-gray-300 text-gray-600"
-                            }`}
-                          >
-                            {mergeSelected.has(u.flat_id) ? "✓" : "+"}
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                </div>
-              ))
-            ) : (
-              <span className="text-gray-400">No units</span>
-            )}
-          </div>
-        );
-      },
-    },
-  ];
-
+  // ================= UI =================
   return (
-    <>
-      <AdminLayout>
-        <DataTableLayout
-          title={`Unit Management${selectedSocietyName ? ` - ${selectedSocietyName}` : ""}`}
-          filters={
-            <select
-              value={selectedSocietyId}
-              onChange={handleSocietyChange}
-              className="border px-3 py-2 rounded w-64"
-            >
-              <option value="">Select Society</option>
-              {societies.map((s) => (
-                <option key={s.society_id} value={s.society_id}>
-                  {s.society_name}
-                </option>
-              ))}
-            </select>
-          }
-          actions={
-            <Button onClick={() => setOpen(true)} disabled={!selectedSocietyId}>
-              Generate / Update Units
-            </Button>
-          }
+    <AdminLayout>
+      <div className="p-4">
+
+        {/* HEADER */}
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold">Unit Management</h2>
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <Button onClick={() => setImportOpen(true)}>Import Units</Button>
+            <Button onClick={() => setOpen(true)}>Generate / Update Units</Button>
+          </div>
+        </div>
+
+        {/* SOCIETY */}
+        <select
+          value={selectedSocietyId}
+          onChange={(e) => {
+            setSearchParams({ societyId: e.target.value });
+            setMergeSelected(new Set());
+            setMergeFloorId(null);
+          }}
+          className="border px-3 py-2 rounded mb-4"
         >
-          {mergeSelected.size > 0 && (
-            <div className="mb-3 p-3 rounded border bg-white">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-semibold">
-                  Selected for merge (same floor only)
+          {societies.map((s) => (
+            <option key={s.society_id} value={s.society_id}>
+              {s.society_name}
+            </option>
+          ))}
+        </select>
+
+        {/* TOWER TABS */}
+        <div className="flex gap-2 mb-4">
+          {towers.map((t) => (
+            <button
+              key={t.tower_id}
+              onClick={() => {
+                setActiveTowerId(t.tower_id);
+                setMergeSelected(new Set());
+                setMergeFloorId(null);
+                setOpenFloor(null);
+              }}
+              className={`px-4 py-2 rounded ${
+                activeTowerId === t.tower_id
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200"
+              }`}
+            >
+             Tower - {t.tower_name}
+            </button>
+          ))}
+        </div>
+
+        {/* SEARCH */}
+        <input
+          type="text"
+          placeholder="Search unit / floor / type..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="border px-3 py-2 rounded w-full mb-4"
+        />
+
+
+        {/* MERGE BAR */}
+
+
+        {mergeSelected.size > 0 && (
+          <div className="mb-3 p-2 border bg-blue-50 rounded flex justify-between">
+            <div className="flex gap-2 text-xs flex-wrap">
+              {selectedUnits.map((u) => (
+                <div key={u.flat_id} className="bg-white px-2 py-1 rounded border">
+                  {u.flat_number}
                 </div>
-                <div className="flex items-center gap-3">
-                  <Button
-                    onClick={doMergeSelected}
-                    disabled={mergeSelected.size < 2}
-                  >
-                    Merge Selected ({mergeSelected.size})
-                  </Button>
-                  <button
-                    type="button"
-                    className="text-xs text-gray-500 underline"
+              ))}
+            </div>
+
+            <Button onClick={doMergeSelected}>
+              Merge ({mergeSelected.size})
+            </Button>
+          </div>
+        )}
+
+
+        {/* FLOORS */}
+        {loading ? (
+
+          <Spinner />
+
+        ) : (
+          <div className="flex flex-col gap-3 flex-wrap md:flex-row">
+            {floors.map((floorId) => {
+              const isOpen = openFloor === floorId;
+
+              return (
+                <div key={floorId} className="border rounded bg-gray-50 md:w-[49%]">
+
+                  {/* HEADER */}
+
+                  <div
                     onClick={() => {
+                      const next = isOpen ? null : floorId;
+                      setOpenFloor(next);
+
+                      // reset merge
                       setMergeSelected(new Set());
                       setMergeFloorId(null);
                     }}
+                    className="px-4 py-3 cursor-pointer flex justify-between "
                   >
-                    Clear
-                  </button>
-                </div>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {selectedUnits.map((u) => (
-                  <div
-                    key={u.flat_id}
-                    className="text-xs px-2 py-1 rounded border bg-gray-50"
-                    title={`Type: ${u.unit_type || "N/A"} | Status: ${u.status || "N/A"}`}
-                  >
-                    <span className="font-semibold">{u.flat_number}</span>
-                    <span className="ml-1 opacity-70">({u.unit_type})</span>
-                    <button
-                      type="button"
-                      className="ml-2 text-gray-500 underline"
-                      onClick={() => handleOpenFlat(u)}
-                    >
-                      Info
-                    </button>
-                    <button
-                      type="button"
-                      className="ml-2 text-red-600 underline"
-                      onClick={() => toggleMergeSelection(u)}
-                    >
-                      Remove
-                    </button>
+                    <span className="font-semibold">
+                      Floor {floorId}
+                    </span>
+                    <span>{isOpen ? "▲" : "▼"}</span>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {loading ? (
-            <div className="p-6 flex items-center justify-center">
-              <Spinner />
-            </div>
-          ) : (
-            <DataTable columns={columns} data={towerWithUnits} />
-          )}
-        </DataTableLayout>
 
-        <Modal
-          isOpen={open}
-          onClose={() => setOpen(false)}
-          title="Generate Units"
-        >
+                  {/* CONTENT */}
+                  {isOpen && (
+                    <div className="p-3 flex flex-wrap gap-2">
+                      {groupedFloors[floorId].map((u) => (
+                        <div
+                          key={u.flat_id}
+                          onClick={() => handleOpenFlat(u)}
+                          className={`relative px-3 py-2 rounded-md border text-xs cursor-pointer flex h-[5rem] ${
+                            u.unit_type === "Jodi"
+                              ? "bg-red-100 text-red-700"
+                              : u.is_merged
+                              ? "bg-gray-100 text-gray-500"
+                              : "bg-blue-100 text-blue-700"
+                          } ${
+                            mergeSelected.has(u.flat_id)
+                              ? "ring-2 ring-blue-500"
+                              : ""
+                          }`}
+                        >
+                          <div className="font-semibold flex align-middle items-center">
+                            {u.flat_number} ({u.unit_type})
+                          </div>
+
+                          {u.unit_type !== "Jodi" && !u.is_merged && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleMergeSelection(u);
+                              }}
+                              className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full border bg-white"
+                            >
+                              {mergeSelected.has(u.flat_id) ? "✓" : "+"}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* MODALS */}
+        <Modal isOpen={open} onClose={() => setOpen(false)}>
           <UnitForm
             towers={towers}
             societyId={selectedSocietyId}
-            onSuccess={() => {
-              setOpen(false);
-              fetchData();
-            }}
+            onSuccess={fetchData}
           />
         </Modal>
-      </AdminLayout>
 
-      {/* ================= Flat Details Modal ================= */}
-      <Modal
-        isOpen={flatModalOpen}
-        onClose={() => setFlatModalOpen(false)}
-        title="Flat Details"
-      >
-        {selectedFlat ? (
-          <div className="space-y-2 text-sm">
-            <p><strong>Flat:</strong> {selectedFlat.flat_number}</p>
-            <p><strong>Type:</strong> {selectedFlat.unit_type}</p>
-            <p><strong>Owner:</strong> {selectedFlat.owner_name || "N/A"}</p>
-            <p><strong>Phone:</strong> {selectedFlat.phone || "N/A"}</p>
-            <p><strong>Email:</strong> {selectedFlat.email || "N/A"}</p>
+        <Modal
+      isOpen={flatModalOpen}
+      onClose={() => setFlatModalOpen(false)}
+      title="Flat Details"
+    >
+      {selectedFlat ? (
+        <div className="space-y-3 text-sm">
 
-            {selectedFlat.is_merged && (
-              <p className="text-red-500">
-                Merged: {selectedFlat.merged_from}
-              </p>
-            )}
+          <p><strong>Flat:</strong> {selectedFlat.flat_number}</p>
+          <p><strong>Type:</strong> {selectedFlat.unit_type}</p>
+          <p><strong>Owner:</strong> {selectedFlat.owner_name || "N/A"}</p>
+          <p><strong>Phone:</strong> {selectedFlat.phone || "N/A"}</p>
+          <p><strong>Email:</strong> {selectedFlat.email || "N/A"}</p>
 
-            {selectedFlat.unit_type === "Jodi" && selectedFlat.merged_unit_id && (
-              <div className="pt-2">
-                <Button
-                  variant="danger"
-                  onClick={async () => {
-                    if (!window.confirm("Unmerge this Jodi unit?")) return;
-                    try {
-                      await unmergeUnits({ merged_unit_id: selectedFlat.merged_unit_id });
-                      setFlatModalOpen(false);
-                      fetchData();
-                    } catch (err) {
-                      console.error(err);
-                    }
-                  }}
-                >
-                  Unmerge
-                </Button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="p-6 flex items-center justify-center">
-            <Spinner />
-          </div>
-        )}
+          {/* ✅ UNMERGE BUTTON */}
+          {selectedFlat.unit_type === "Jodi" && (
+            <div className="pt-3 border-t">
+
+              <Button
+                variant="danger"
+                onClick={async () => {
+                  if (!window.confirm("Unmerge this unit?")) return;
+
+                  try {
+                    await unmergeUnits({
+                      merged_unit_id: selectedFlat.merged_unit_id,
+                    });
+
+                    toast.success("Units unmerged");
+
+                    setFlatModalOpen(false);
+                    fetchData(); // refresh UI
+
+                  } catch (err) {
+                    console.error(err);
+                    toast.error("Unmerge failed");
+                  }
+                }}
+              >
+                Unmerge Units
+              </Button>
+
+            </div>
+          )}
+
+        </div>
+      ) : (
+        <Spinner />
+      )}
+    </Modal>
+    <Modal
+      isOpen={importOpen}
+      onClose={() => setImportOpen(false)}
+      title="Bulk Import Units"
+      className="max-w-2xl"
+    >
+        <BulkImport
+          societyId={selectedSocietyId}
+          onSuccess={(data) => {
+            fetchData(); // refresh units
+            if (!data?.failedCount) setImportOpen(false);
+          }}
+        />
       </Modal>
-    </>
+
+      </div>
+    </AdminLayout>
   );
 };
 
