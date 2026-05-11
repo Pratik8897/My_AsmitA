@@ -9,6 +9,7 @@ const Login = () => {
   const [form, setForm] = useState({
     email: "",
     password: "",
+    society_id: "",
   });
   const [showPassword, setShowPassword] = useState(false);
 
@@ -85,6 +86,21 @@ const Login = () => {
           <button className="login-forgot" type="button">
             Forgot Password?
           </button>
+
+          <label className="login-label" htmlFor="login-society">
+            Society ID (optional)
+          </label>
+          <div className="login-input">
+            <span className="login-icon" aria-hidden="true" />
+            <input
+              id="login-society"
+              type="number"
+              placeholder="Society ID"
+              value={form.society_id}
+              onChange={(e) => setForm({ ...form, society_id: e.target.value })}
+              min={1}
+            />
+          </div>
 
           <button className="login-submit" type="submit">
             SIGN IN

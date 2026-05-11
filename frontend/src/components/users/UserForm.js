@@ -224,12 +224,36 @@ const UserForm = ({
         .filter((n) => Number.isInteger(n) && n > 0)
     );
 
+    const mergedFlatIds = new Set(
+      flats
+        .filter((flat) => String(flat?.flat_number || "").includes("+"))
+        .map((flat) => Number(flat.flat_id))
+        .filter((n) => Number.isInteger(n) && n > 0)
+    );
+
     const byTower = new Map();
     for (const flat of flats) {
       const flatId = Number(flat?.flat_id);
       const isAssigned = assignedFlatIds.has(flatId);
       const canUse = !isAssigned || allowedForThisUser.has(flatId);
       if (!canUse) continue;
+
+      const flatNumber = String(flat?.flat_number || "");
+      const unitType = String(flat?.unit_type || "");
+      const isMerged = Number(flat?.is_merged) === 1;
+
+      // For merges:
+      // - show the merged flat row ("101+102" with unit_type=Jodi)
+      // - hide member flats so the dropdown doesn't show duplicates
+      if (flatNumber.includes("+")) {
+        // keep merged row
+      } else if (flat.merged_from && mergedFlatIds.size) {
+        // member flat
+        continue;
+      }
+
+      if (unitType.toUpperCase() === "MERGED") continue;
+      if (flatNumber.startsWith("M-")) continue;
 
       const key = String(flat.tower_id || "");
       if (!byTower.has(key)) byTower.set(key, []);
@@ -271,15 +295,48 @@ const UserForm = ({
     }
 
     try {
+      const expandFlatIds = (flatId) => {
+        const id = Number(flatId);
+        if (!Number.isInteger(id) || id <= 0) return [];
+
+        const selected = flats.find((f) => Number(f.flat_id) === id);
+        if (!selected) return [id];
+
+        const flatNumber = String(selected.flat_number || "");
+        if (!flatNumber.includes("+")) return [id];
+
+        // If user selects merged flat "101+102", assign the same user to all member flats too.
+        const members = flats
+          .filter((f) => String(f.merged_from || "") === flatNumber)
+          .filter((f) => !String(f.flat_number || "").includes("+"))
+          .map((f) => Number(f.flat_id))
+          .filter((n) => Number.isInteger(n) && n > 0);
+
+        return Array.from(new Set([id, ...members]));
+      };
+
       const payload = {
         ...form,
         society_id: form.society_id ? Number(form.society_id) : null,
-        flat_mappings: flatMappings
-          .map((m) => ({
-            flat_id: m.flat_id ? Number(m.flat_id) : null,
-            ownership_type: m.ownership_type === "Tenant" ? "Tenant" : "Owner",
-          }))
-          .filter((m) => Number.isInteger(m.flat_id) && m.flat_id > 0),
+        flat_mappings: (() => {
+          const expanded = flatMappings
+            .flatMap((m) => {
+              const ownership_type =
+                m.ownership_type === "Tenant" ? "Tenant" : "Owner";
+
+              return expandFlatIds(m.flat_id).map((flat_id) => ({
+                flat_id,
+                ownership_type,
+              }));
+            })
+            .filter((m) => Number.isInteger(m.flat_id) && m.flat_id > 0);
+
+          const unique = new Map();
+          for (const mapping of expanded) {
+            if (!unique.has(mapping.flat_id)) unique.set(mapping.flat_id, mapping);
+          }
+          return Array.from(unique.values());
+        })(),
       };
 
       if (user) {

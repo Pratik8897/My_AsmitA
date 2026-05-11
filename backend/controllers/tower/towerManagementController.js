@@ -1,4 +1,5 @@
 const db = require("../../config/db");
+const { writeAuditLog } = require("../../utils/auditLogger");
 
 const normalizeTowerName = (value) => String(value || "").trim();
 
@@ -108,10 +109,28 @@ exports.syncTowers = async (req, res) => {
     );
 
     await conn.commit();
+
+    void writeAuditLog({
+      req,
+      module: "TOWER",
+      action: "TOWER_SYNC",
+      description: "Tower created/deleted via sync",
+      status: "SUCCESS",
+      old_value: existing.map((t) => ({ tower_id: t.tower_id, tower_name: t.tower_name })),
+      new_value: cleanedNames.map((name) => ({ tower_name: name })),
+    });
     res.json(rows);
   } catch (error) {
     await conn.rollback();
     console.error("SYNC TOWERS ERROR:", error);
+    void writeAuditLog({
+      req,
+      module: "TOWER",
+      action: "TOWER_SYNC",
+      description: "Tower sync failed",
+      status: "ERROR",
+      new_value: req.body,
+    });
     res.status(500).json({ error: error.message });
   } finally {
     conn.release();
@@ -130,12 +149,29 @@ exports.deleteTower = async (req, res) => {
     const [result] = await conn.query("DELETE FROM towers WHERE tower_id = ?", [towerId]);
     await conn.commit();
 
+    void writeAuditLog({
+      req,
+      module: "TOWER",
+      action: "TOWER_DELETED",
+      description: "Tower deleted",
+      status: result.affectedRows === 0 ? "FAILED" : "SUCCESS",
+      new_value: { tower_id: towerId },
+    });
+
     if (result.affectedRows === 0) return res.status(404).json({ error: "Tower not found" });
 
     res.json({ message: "Tower deleted successfully" });
   } catch (error) {
     await conn.rollback();
     console.error("DELETE TOWER ERROR:", error);
+    void writeAuditLog({
+      req,
+      module: "TOWER",
+      action: "TOWER_DELETED",
+      description: "Tower delete failed",
+      status: "ERROR",
+      new_value: { tower_id: towerId },
+    });
     res.status(500).json({ error: error.message });
   } finally {
     conn.release();

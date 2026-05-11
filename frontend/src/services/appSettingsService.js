@@ -57,6 +57,17 @@ export const defaultAppSettings = {
       },
     },
     {
+      id: "committee-member",
+      name: "Committee Member",
+      scope: "Society",
+      description: "Committee member with limited society administration access.",
+      isSystem: true,
+      restrictions: {
+        canApproveResidents: true,
+        canManageAmenities: true,
+      },
+    },
+    {
       id: "user",
       name: "User",
       scope: "Resident",

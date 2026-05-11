@@ -7,7 +7,7 @@ import {
   getAppSettings,
 } from "../services/appSettingsService";
 import { canAccessItem } from "../services/accessControl";
-import { clearAuthSession, getStoredAuthUser } from "../services/authService";
+import { getStoredAuthUser, logout } from "../services/authService";
 
 const AdminLayout = ({ title, children }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -74,8 +74,8 @@ const AdminLayout = ({ title, children }) => {
     setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
   };
 
-  const handleLogout = () => {
-    clearAuthSession();
+  const handleLogout = async () => {
+    await logout();
     window.location.href = "/";
   };
 

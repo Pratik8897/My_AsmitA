@@ -13,6 +13,8 @@ import {
   Cog6ToothIcon,
   BuildingLibraryIcon,   
   RectangleGroupIcon,   
+  DocumentTextIcon,
+  TicketIcon,
 } from "@heroicons/react/24/outline";
 
 export const menuItems = [
@@ -140,5 +142,40 @@ export const menuItems = [
     path: "/settings",
     icon: Cog6ToothIcon,
     roles: ["admin", "super-admin"],
+  },
+
+  {
+    label: "My Invites",
+    path: "/resident/invites",
+    icon: TicketIcon,
+    roles: ["user", "owner", "tenant", "resident", "society-admin", "admin", "super-admin"],
+  },
+
+  {
+    label: "Gate Invites",
+    path: "/guard/invites",
+    icon: TicketIcon,
+    roles: ["security-guard", "society-admin", "society-manager", "admin", "super-admin"],
+  },
+
+  {
+    label: "Invites (Admin)",
+    path: "/admin/pre-approved-invites",
+    icon: TicketIcon,
+    roles: ["admin", "super-admin"],
+  },
+
+  {
+    label: "Gate Logs",
+    path: "/admin/gate-entry-logs",
+    icon: TicketIcon,
+    roles: ["admin", "super-admin"],
+  },
+
+  {
+    label: "System Logs",
+    path: "/system-logs",
+    icon: DocumentTextIcon,
+    roles: ["super-admin"],
   },
 ];

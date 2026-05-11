@@ -1,4 +1,7 @@
 const db = require("../config/db");
+const { writeAuditLog } = require("../utils/auditLogger");
+const { createPasswordResetToken } = require("../utils/passwordReset");
+const { sendMail } = require("../utils/mailer");
 const mobileNumberPattern = /^\d{10}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -196,12 +199,84 @@ exports.createUser = async (req, res) => {
       }
     }
 
+    void writeAuditLog({
+      req,
+      module: "USER",
+      action: "USER_CREATED",
+      description: "User created",
+      status: "SUCCESS",
+      new_value: {
+        user_id: userId,
+        full_name,
+        email_id: normalizedEmail,
+        mobile_number: normalizedMobile,
+        user_type,
+        society_id: society_id ? Number(society_id) : null,
+        flat_mappings: Array.isArray(flat_mappings) ? flat_mappings : undefined,
+      },
+    });
+
+    // Send password reset/setup email (best-effort)
+    if (normalizedEmail) {
+      try {
+        const { rawToken, expiresAt } = await createPasswordResetToken(
+          userId,
+          Number(process.env.PASSWORD_RESET_TTL_MINUTES || 60)
+        );
+
+        const appBaseUrl =
+          process.env.FRONTEND_BASE_URL || "http://localhost:3000";
+        const resetLink = `${appBaseUrl}/reset-password?token=${rawToken}&user_id=${userId}`;
+
+        await sendMail({
+          to: normalizedEmail,
+          subject: "Set your password",
+          text: `Welcome! Set your password using this link (expires at ${expiresAt.toISOString()}): ${resetLink}`,
+          html: `
+            <div style="font-family:Arial,sans-serif;line-height:1.4">
+              <h2>Welcome to my AsmitA</h2>
+              <p>Your account has been created. Click below to set your password.</p>
+              <p><a href="${resetLink}">Set Password</a></p>
+              <p style="color:#666;font-size:12px">This link expires at ${expiresAt.toISOString()}.</p>
+            </div>
+          `,
+        });
+
+        void writeAuditLog({
+          req,
+          module: "AUTH",
+          action: "PASSWORD_RESET_EMAIL_SENT",
+          description: "Password reset email sent on user creation",
+          status: "SUCCESS",
+          new_value: { user_id: userId, email: normalizedEmail },
+        });
+      } catch (error) {
+        console.error("SEND RESET EMAIL ERROR:", error);
+        void writeAuditLog({
+          req,
+          module: "AUTH",
+          action: "PASSWORD_RESET_EMAIL_SENT",
+          description: "Password reset email failed on user creation",
+          status: "ERROR",
+          new_value: { user_id: userId, email: normalizedEmail, error: error?.message },
+        });
+      }
+    }
+
     res.status(201).json({
       message: "User created successfully",
       userId,
     });
   } catch (err) {
     console.error("CREATE USER ERROR:", err);
+    void writeAuditLog({
+      req,
+      module: "USER",
+      action: "USER_CREATED",
+      description: "User create failed",
+      status: "ERROR",
+      new_value: req.body,
+    });
     res.status(500).json({ error: err.message });
   }
 };
@@ -270,6 +345,20 @@ exports.updateUser = async (req, res) => {
     await ensureSocietyIdColumn();
     await ensureUserFlatMappingTable();
 
+    const [oldUserRows] = await db.query(
+      "SELECT * FROM users WHERE user_id = ? LIMIT 1",
+      [id]
+    );
+    const oldUser = oldUserRows[0] || null;
+
+    const [oldMappingRows] = await db.query(
+      `SELECT mapping_id, user_id, flat_id, ownership_type
+       FROM user_flat_mapping
+       WHERE user_id = ?
+       ORDER BY mapping_id ASC`,
+      [id]
+    );
+
     if (password_hash) {
       await db.query(
         `UPDATE users
@@ -326,9 +415,50 @@ exports.updateUser = async (req, res) => {
       }
     }
 
+    void writeAuditLog({
+      req,
+      module: "USER",
+      action: "USER_UPDATED",
+      description: "User profile updated",
+      status: "SUCCESS",
+      old_value: { user: oldUser, flat_mappings: oldMappingRows },
+      new_value: {
+        user_id: Number(id),
+        full_name,
+        email_id: normalizedEmail,
+        mobile_number: normalizedMobile,
+        gender,
+        account_type: account_type || "app",
+        user_type,
+        os_type,
+        society_id: society_id ? Number(society_id) : null,
+        flat_mappings: Array.isArray(flat_mappings) ? flat_mappings : undefined,
+      },
+    });
+
+    if (oldUser && String(oldUser.user_type || "") !== String(user_type || "")) {
+      void writeAuditLog({
+        req,
+        module: "USER",
+        action: "USER_ROLE_CHANGED",
+        description: "User role changed",
+        status: "SUCCESS",
+        old_value: { user_id: Number(id), user_type: oldUser.user_type },
+        new_value: { user_id: Number(id), user_type },
+      });
+    }
+
     res.json({ message: "User updated" });
   } catch (err) {
     console.error("UPDATE USER ERROR:", err);
+    void writeAuditLog({
+      req,
+      module: "USER",
+      action: "USER_UPDATED",
+      description: "User update failed",
+      status: "ERROR",
+      new_value: { user_id: req.params.id, ...req.body },
+    });
     res.status(500).json({ error: err.message });
   }
 };
@@ -337,14 +467,38 @@ exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const [oldUserRows] = await db.query(
+      "SELECT * FROM users WHERE user_id = ? LIMIT 1",
+      [id]
+    );
+    const oldUser = oldUserRows[0] || null;
+
     await db.query(
       "UPDATE users SET is_active = 0 WHERE user_id = ?",
       [id]
     );
 
+    void writeAuditLog({
+      req,
+      module: "USER",
+      action: "USER_DELETED",
+      description: "User deleted (deactivated)",
+      status: "SUCCESS",
+      old_value: oldUser,
+      new_value: { user_id: Number(id), is_active: 0 },
+    });
+
     res.json({ message: "User deactivated" });
   } catch (err) {
     console.error("DELETE USER ERROR:", err);
+    void writeAuditLog({
+      req,
+      module: "USER",
+      action: "USER_DELETED",
+      description: "User delete failed",
+      status: "ERROR",
+      new_value: { user_id: req.params.id },
+    });
     res.status(500).json({ error: err.message });
   }
 };

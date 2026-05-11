@@ -1,4 +1,5 @@
 const db = require("../../config/db");
+const { writeAuditLog } = require("../../utils/auditLogger");
 
 const UNIT_TYPES = new Set(["1BHK", "2BHK", "3BHK", "Jodi"]);
 const UNIT_STATUS = new Set(["available", "occupied"]);
@@ -250,10 +251,29 @@ exports.generateUnits = async (req, res) => {
     }
 
     await conn.commit();
+
+    void writeAuditLog({
+      req,
+      module: "UNIT",
+      action: "UNIT_FLAT_CREATED",
+      description: "Units/flats created (bulk generate)",
+      status: "SUCCESS",
+      new_value: {
+        configs_count: Array.isArray(configs) ? configs.length : 0,
+      },
+    });
     res.json({ message: "Units generated successfully" });
   } catch (error) {
     await conn.rollback();
     console.error("GENERATE UNITS ERROR:", error);
+    void writeAuditLog({
+      req,
+      module: "UNIT",
+      action: "UNIT_FLAT_CREATED",
+      description: "Units/flats generate failed",
+      status: "ERROR",
+      new_value: req.body,
+    });
     res.status(500).json({ error: error.message });
   } finally {
     conn.release();

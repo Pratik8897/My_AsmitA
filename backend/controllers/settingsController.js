@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { writeAuditLog } = require("../utils/auditLogger");
 
 const defaultRoleRestrictions = {
   canManageUsers: false,
@@ -50,6 +51,17 @@ const defaultSettings = {
       restrictions: {
         canManageUsers: true,
         canManageSocieties: true,
+        canApproveResidents: true,
+        canManageAmenities: true,
+      },
+    },
+    {
+      id: "committee-member",
+      name: "Committee Member",
+      scope: "Society",
+      description: "Committee member with limited society administration access.",
+      isSystem: true,
+      restrictions: {
         canApproveResidents: true,
         canManageAmenities: true,
       },
@@ -225,6 +237,7 @@ exports.getSettings = async (req, res) => {
 
 exports.updateSettings = async (req, res) => {
   try {
+    const before = await loadSettings();
     const settings = normalizeSettings(req.body);
 
     await ensureSettingsTable();
@@ -240,9 +253,27 @@ exports.updateSettings = async (req, res) => {
       ]
     );
 
+    void writeAuditLog({
+      req,
+      module: "SETTINGS",
+      action: "SETTINGS_UPDATED",
+      description: "Settings updated",
+      status: "SUCCESS",
+      old_value: before,
+      new_value: settings,
+    });
+
     res.json(settings);
   } catch (error) {
     console.error("UPDATE SETTINGS ERROR:", error);
+    void writeAuditLog({
+      req,
+      module: "SETTINGS",
+      action: "SETTINGS_UPDATED",
+      description: "Settings update failed",
+      status: "ERROR",
+      new_value: req.body,
+    });
     res.status(500).json({ error: error.message });
   }
 };

@@ -28,6 +28,22 @@ import AddUser from "../pages/User/AddUser";
 import UserManagement from "../pages/User/UserManagement";
 import TowerManagement from "../pages/Tower/TowerManagement";
 import UnitManagement from "../pages/Unit/UnitManagement";
+import GuardVisitors from "../pages/Visitor/GuardVisitors";
+import ResidentVisitors from "../pages/Visitor/ResidentVisitors";
+import SystemLogs from "../pages/SystemLogs/SystemLogs";
+import ResidentMyInvites from "../pages/Invites/ResidentMyInvites";
+import CreateInvite from "../pages/Invites/CreateInvite";
+import InviteDetails from "../pages/Invites/InviteDetails";
+import GuardInviteSearch from "../pages/Invites/GuardInviteSearch";
+import AdminInvites from "../pages/Invites/AdminInvites";
+import AdminGateEntryLogs from "../pages/Invites/AdminGateEntryLogs";
+import MobileHome from "../pages/Mobile/MobileHome";
+import MobileResidentInvites from "../pages/Mobile/MobileResidentInvites";
+import MobileGuardInvites from "../pages/Mobile/MobileGuardInvites";
+import MobileProfile from "../pages/Mobile/MobileProfile";
+import MobileMore from "../pages/Mobile/MobileMore";
+import MobileResidentHome from "../pages/Mobile/MobileResidentHome";
+import MobileGuardHome from "../pages/Mobile/MobileGuardHome";
 
 const withProtection = (element, access = {}) => (
   <ProtectedRoute access={access}>{element}</ProtectedRoute>
@@ -38,6 +54,7 @@ const AppRoutes = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/m" element={<MobileHome />} />
         <Route path="/dashboard" element={withProtection(<Dashboard />)} />
         <Route
           path="/user-management"
@@ -210,6 +227,12 @@ const AppRoutes = () => {
           })}
         />
         <Route
+          path="/system-logs"
+          element={withProtection(<SystemLogs />, {
+            roles: ["super-admin"],
+          })}
+        />
+        <Route
           path="/add-faq"
           element={withProtection(<Faq />, {
             roles: ["admin", "super-admin"],
@@ -224,6 +247,90 @@ const AppRoutes = () => {
         <Route
           path="/privacy-policy"
           element={withProtection(<PrivacyPolicy />)}
+        />
+        <Route
+          path="/guard/visitors"
+          element={withProtection(<GuardVisitors />, {
+            roles: ["security-guard", "admin", "super-admin", "society-admin", "society-manager"],
+          })}
+        />
+        <Route
+          path="/resident/visitors"
+          element={withProtection(<ResidentVisitors />, {
+            roles: ["user", "owner", "tenant", "resident", "admin", "super-admin", "society-admin"],
+          })}
+        />
+        <Route
+          path="/resident/invites"
+          element={withProtection(<ResidentMyInvites />, {
+            roles: ["user", "owner", "tenant", "resident", "admin", "super-admin", "society-admin"],
+          })}
+        />
+        <Route
+          path="/resident/invites/new"
+          element={withProtection(<CreateInvite />, {
+            roles: ["user", "owner", "tenant", "resident", "admin", "super-admin", "society-admin"],
+          })}
+        />
+        <Route
+          path="/resident/invites/:id"
+          element={withProtection(<InviteDetails />, {
+            roles: ["user", "owner", "tenant", "resident", "admin", "super-admin", "society-admin"],
+          })}
+        />
+        <Route
+          path="/guard/invites"
+          element={withProtection(<GuardInviteSearch />, {
+            roles: ["security-guard", "admin", "super-admin", "society-admin", "society-manager"],
+          })}
+        />
+        <Route
+          path="/m/resident/invites"
+          element={withProtection(<MobileResidentInvites />, {
+            roles: ["user", "owner", "tenant", "resident", "admin", "super-admin", "society-admin"],
+          })}
+        />
+        <Route
+          path="/m/resident/home"
+          element={withProtection(<MobileResidentHome />, {
+            roles: ["user", "owner", "tenant", "resident", "admin", "super-admin", "society-admin"],
+          })}
+        />
+        <Route
+          path="/m/guard/invites"
+          element={withProtection(<MobileGuardInvites />, {
+            roles: ["security-guard", "admin", "super-admin", "society-admin", "society-manager"],
+          })}
+        />
+        <Route
+          path="/m/guard/home"
+          element={withProtection(<MobileGuardHome />, {
+            roles: ["security-guard", "admin", "super-admin", "society-admin", "society-manager"],
+          })}
+        />
+        <Route
+          path="/m/profile"
+          element={withProtection(<MobileProfile />, {
+            roles: ["user", "owner", "tenant", "resident", "security-guard", "admin", "super-admin", "society-admin", "society-manager"],
+          })}
+        />
+        <Route
+          path="/m/more"
+          element={withProtection(<MobileMore />, {
+            roles: ["user", "owner", "tenant", "resident", "security-guard", "admin", "super-admin", "society-admin", "society-manager"],
+          })}
+        />
+        <Route
+          path="/admin/pre-approved-invites"
+          element={withProtection(<AdminInvites />, {
+            roles: ["admin", "super-admin"],
+          })}
+        />
+        <Route
+          path="/admin/gate-entry-logs"
+          element={withProtection(<AdminGateEntryLogs />, {
+            roles: ["admin", "super-admin"],
+          })}
         />
       </Routes>
     </BrowserRouter>
